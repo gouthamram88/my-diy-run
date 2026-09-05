@@ -2,36 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1,
+                 maximum-scale=1, user-scalable=no">
+
   <title>My DIY Run</title>
 
+  <!-- Leaflet map -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
   <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 640px;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      max-width: 700px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 18px;
+
       background: #f5f5f5;
       color: #111;
     }
 
     h1 {
-      margin-bottom: 5px;
+      margin: 0;
+      font-size: 28px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
     }
 
     .subtitle {
       color: #666;
-      margin-bottom: 20px;
+      margin: 4px 0 18px;
     }
 
     button {
       width: 100%;
       padding: 15px;
-      margin: 6px 0;
+      margin: 5px 0;
+
       border: none;
       border-radius: 10px;
+
       font-size: 17px;
       font-weight: 600;
+
       cursor: pointer;
     }
 
@@ -44,434 +73,1047 @@
       background: #c62828;
     }
 
+    #sensorButton {
+      background: #555;
+      color: white;
+    }
+
     #exportButton {
       background: #333;
       color: white;
     }
 
     .stats {
+
       display: grid;
-      grid-template-columns: 1fr 1fr;
+
+      grid-template-columns:
+        repeat(2, 1fr);
+
       gap: 10px;
-      margin-top: 20px;
+
+      margin-top: 15px;
     }
 
     .card {
+
       background: white;
+
       border-radius: 12px;
-      padding: 15px;
+
+      padding: 14px;
+
       text-align: center;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+
+      box-shadow:
+        0 1px 4px rgba(0,0,0,0.08);
     }
 
     .label {
+
       font-size: 13px;
+
       color: #777;
     }
 
     .value {
-      font-size: 25px;
+
+      font-size: 24px;
+
       font-weight: 600;
-      margin-top: 5px;
+
+      margin-top: 4px;
     }
 
-    #status {
-      margin-top: 15px;
+    .status {
+
+      margin-top: 12px;
+
       padding: 12px;
+
       background: white;
+
       border-radius: 10px;
+
+      font-size: 14px;
     }
 
     .warning {
-      margin-top: 15px;
+
+      margin-top: 12px;
+
       padding: 15px;
+
       background: #fff3cd;
+
       border-radius: 10px;
     }
 
     .warning button {
+
       background: white;
-      color: #111;
+
       border: 1px solid #bbb;
     }
 
     .section {
+
       margin-top: 25px;
     }
 
-    .section h2 {
-      font-size: 20px;
+    #map {
+
+      height: 350px;
+
+      border-radius: 12px;
+
+      margin-top: 10px;
+
+      background: #ddd;
     }
 
     .split {
+
       display: flex;
+
       justify-content: space-between;
-      padding: 10px 5px;
-      border-bottom: 1px solid #ddd;
+
+      padding: 11px;
+
       background: white;
+
+      border-bottom: 1px solid #ddd;
     }
 
     .history-run {
+
       background: white;
-      padding: 14px;
+
+      padding: 15px;
+
       margin: 8px 0;
+
       border-radius: 10px;
+
+      box-shadow:
+        0 1px 4px rgba(0,0,0,0.08);
+
       cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
 
     .history-main {
+
       font-weight: 600;
+
       font-size: 17px;
     }
 
     .history-details {
+
       color: #666;
+
       margin-top: 5px;
+
       font-size: 14px;
     }
 
-    .empty {
-      color: #777;
+    .detail-panel {
+
       background: white;
+
       padding: 15px;
-      border-radius: 10px;
+
+      border-radius: 12px;
+
+      margin-top: 10px;
+    }
+
+    .detail-grid {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(2, 1fr);
+
+      gap: 10px;
+
+      margin-top: 10px;
+    }
+
+    .detail-item {
+
+      padding: 10px;
+
+      background: #f5f5f5;
+
+      border-radius: 8px;
+    }
+
+    .small {
+
+      font-size: 12px;
+
+      color: #777;
     }
 
     .hidden {
       display: none;
     }
+
+    .sensor-status {
+
+      margin-top: 8px;
+
+      padding: 10px;
+
+      background: white;
+
+      border-radius: 8px;
+
+      font-size: 13px;
+    }
+
   </style>
 </head>
+
 
 <body>
 
   <h1>My DIY Run</h1>
-  <div class="subtitle">V3 — GPS + saved run history</div>
 
-  <button id="runButton">START RUN</button>
+  <div class="subtitle">
+    V4–V7 • GPS + Map + Sensors + Analytics
+  </div>
 
-  <div id="status">
+
+  <!-- ======================================================
+       MAIN CONTROL
+       ====================================================== -->
+
+  <button id="runButton">
+    START RUN
+  </button>
+
+
+  <button id="sensorButton">
+    ENABLE PHONE SENSORS
+  </button>
+
+
+  <div id="status"
+       class="status">
+
     Ready.
   </div>
 
-  <div id="stats" class="stats hidden">
+
+  <div id="sensorStatus"
+       class="sensor-status">
+
+    Phone sensors:
+    not enabled
+  </div>
+
+
+  <!-- ======================================================
+       LIVE STATS
+       ====================================================== -->
+
+  <div id="stats"
+       class="stats hidden">
 
     <div class="card">
-      <div class="label">Distance</div>
-      <div class="value" id="distance">0.00 km</div>
+
+      <div class="label">
+        Distance
+      </div>
+
+      <div id="distance"
+           class="value">
+        0.00 km
+      </div>
+
     </div>
 
-    <div class="card">
-      <div class="label">Time</div>
-      <div class="value" id="elapsed">00:00</div>
-    </div>
 
     <div class="card">
-      <div class="label">Avg Pace</div>
-      <div class="value" id="avgPace">--</div>
+
+      <div class="label">
+        Time
+      </div>
+
+      <div id="elapsed"
+           class="value">
+        00:00
+      </div>
+
     </div>
 
-    <div class="card">
-      <div class="label">Speed</div>
-      <div class="value" id="speed">0.0 km/h</div>
-    </div>
 
     <div class="card">
-      <div class="label">GPS Accuracy</div>
-      <div class="value" id="accuracy">--</div>
+
+      <div class="label">
+        Avg Pace
+      </div>
+
+      <div id="avgPace"
+           class="value">
+        --
+      </div>
+
     </div>
 
+
     <div class="card">
-      <div class="label">GPS Points</div>
-      <div class="value" id="pointsCount">0</div>
+
+      <div class="label">
+        Speed
+      </div>
+
+      <div id="speed"
+           class="value">
+        0.0 km/h
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="label">
+        GPS Accuracy
+      </div>
+
+      <div id="accuracy"
+           class="value">
+        --
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="label">
+        GPS Points
+      </div>
+
+      <div id="pointsCount"
+           class="value">
+        0
+      </div>
+
     </div>
 
   </div>
 
-  <div id="warning" class="warning hidden">
-    <strong>Very little movement detected.</strong>
+
+  <!-- ======================================================
+       MAP
+       ====================================================== -->
+
+  <div class="section">
+
+    <h2>Route</h2>
+
+    <div id="map"></div>
+
+  </div>
+
+
+  <!-- ======================================================
+       WARNING
+       ====================================================== -->
+
+  <div id="warning"
+       class="warning hidden">
+
+    <strong>
+      Very little movement detected.
+    </strong>
+
     <p>
       The GPS data does not show significant movement.
       Do you want to discard this run or keep it anyway?
     </p>
 
-    <button id="discardButton">DISCARD</button>
-    <button id="saveAnywayButton">SAVE ANYWAY</button>
+    <button id="discardButton">
+      DISCARD
+    </button>
+
+    <button id="saveAnywayButton">
+      SAVE ANYWAY
+    </button>
+
   </div>
 
+
+  <!-- ======================================================
+       SPLITS
+       ====================================================== -->
+
   <div class="section">
-    <h2>1 km Splits</h2>
+
+    <h2>
+      1 km Splits
+    </h2>
+
     <div id="splits">
-      <div class="empty">No splits yet.</div>
+
+      <div class="empty">
+        No splits yet.
+      </div>
+
     </div>
+
   </div>
 
-  <div class="section">
-    <button id="exportButton" disabled>EXPORT GPX</button>
-  </div>
+
+  <!-- ======================================================
+       EXPORT
+       ====================================================== -->
 
   <div class="section">
-    <h2>Run History</h2>
+
+    <button id="exportButton"
+            disabled>
+
+      EXPORT GPX
+
+    </button>
+
+  </div>
+
+
+  <!-- ======================================================
+       RUN HISTORY
+       ====================================================== -->
+
+  <div class="section">
+
+    <h2>
+      Run History
+    </h2>
+
     <div id="history"></div>
+
   </div>
+
+
+  <!-- ======================================================
+       RUN DETAIL
+       ====================================================== -->
+
+  <div id="runDetail"
+       class="section hidden">
+
+    <h2>
+      Run Details
+    </h2>
+
+    <div id="detailContent"
+         class="detail-panel">
+    </div>
+
+    <div id="detailMap"
+         style="
+           height:350px;
+           border-radius:12px;
+           margin-top:10px;
+         ">
+    </div>
+
+  </div>
+
+
+  <!-- Leaflet -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+  </script>
 
 
 <script>
 
-  // ------------------------------------------------------------
-  // STATE
-  // ------------------------------------------------------------
 
-  let watchId = null;
+/* ============================================================
+   CONFIGURATION
+   ============================================================ */
 
-  let running = false;
+const MAX_GPS_ACCURACY = 60;
 
-  let startTime = null;
-  let elapsedTimer = null;
+const MIN_SEGMENT_METERS = 3;
 
-  let totalMeters = 0;
+const MAX_REASONABLE_SPEED_MS = 10;
 
-  let lastPosition = null;
-
-  let points = [];
-
-  let splits = [];
-
-  let nextKmMark = 1000;
-
-  let lastSplitTime = null;
-
-  let latestSpeed = 0;
-
-  let movementEvidence = 0;
-
-  const MIN_MOVEMENT_METERS = 3;
-  const MIN_USEFUL_DISTANCE_METERS = 100;
-  const MAX_ACCURACY_METERS = 60;
-  const MAX_REASONABLE_SPEED_MS = 10;
+const USEFUL_DISTANCE_METERS = 100;
 
 
-  // ------------------------------------------------------------
-  // ELEMENTS
-  // ------------------------------------------------------------
+/* ============================================================
+   STATE
+   ============================================================ */
 
-  const runButton = document.getElementById("runButton");
+let running = false;
 
-  const stats = document.getElementById("stats");
+let watchId = null;
 
-  const status = document.getElementById("status");
+let startTime = null;
 
-  const distanceEl = document.getElementById("distance");
-  const elapsedEl = document.getElementById("elapsed");
-  const avgPaceEl = document.getElementById("avgPace");
-  const speedEl = document.getElementById("speed");
-  const accuracyEl = document.getElementById("accuracy");
-  const pointsCountEl = document.getElementById("pointsCount");
+let elapsedTimer = null;
 
-  const splitsEl = document.getElementById("splits");
+let totalMeters = 0;
 
-  const warning = document.getElementById("warning");
+let lastPosition = null;
 
-  const discardButton = document.getElementById("discardButton");
-  const saveAnywayButton = document.getElementById("saveAnywayButton");
+let points = [];
 
-  const exportButton = document.getElementById("exportButton");
+let splits = [];
 
-  const historyEl = document.getElementById("history");
+let nextKmMark = 1000;
+
+let lastSplitTime = null;
+
+let latestSpeed = 0;
+
+let movementEvidence = 0;
+
+let sensorEnabled = false;
+
+let sensorSamples = [];
 
 
-  // ------------------------------------------------------------
-  // FORMATTING
-  // ------------------------------------------------------------
+/* ============================================================
+   MAP
+   ============================================================ */
 
-  function formatDuration(seconds) {
+let map = null;
 
-    seconds = Math.max(0, Math.floor(seconds));
+let routeLine = null;
 
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
+let startMarker = null;
 
-    if (h > 0) {
-      return (
-        String(h).padStart(2, "0") + ":" +
-        String(m).padStart(2, "0") + ":" +
-        String(s).padStart(2, "0")
-      );
+let endMarker = null;
+
+
+/* ============================================================
+   DETAIL MAP
+   ============================================================ */
+
+let detailMap = null;
+
+
+/* ============================================================
+   ELEMENTS
+   ============================================================ */
+
+const runButton =
+  document.getElementById("runButton");
+
+const sensorButton =
+  document.getElementById("sensorButton");
+
+const sensorStatus =
+  document.getElementById("sensorStatus");
+
+const statusEl =
+  document.getElementById("status");
+
+const stats =
+  document.getElementById("stats");
+
+const distanceEl =
+  document.getElementById("distance");
+
+const elapsedEl =
+  document.getElementById("elapsed");
+
+const avgPaceEl =
+  document.getElementById("avgPace");
+
+const speedEl =
+  document.getElementById("speed");
+
+const accuracyEl =
+  document.getElementById("accuracy");
+
+const pointsCountEl =
+  document.getElementById("pointsCount");
+
+const splitsEl =
+  document.getElementById("splits");
+
+const warning =
+  document.getElementById("warning");
+
+const discardButton =
+  document.getElementById("discardButton");
+
+const saveAnywayButton =
+  document.getElementById("saveAnywayButton");
+
+const exportButton =
+  document.getElementById("exportButton");
+
+const historyEl =
+  document.getElementById("history");
+
+const runDetail =
+  document.getElementById("runDetail");
+
+const detailContent =
+  document.getElementById("detailContent");
+
+
+/* ============================================================
+   INITIALISE MAP
+   ============================================================ */
+
+function initialiseMap() {
+
+  map = L.map("map");
+
+  L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      maxZoom: 19,
+      attribution:
+        '&copy; OpenStreetMap contributors'
     }
+  ).addTo(map);
+
+  map.setView(
+    [20, 78],
+    5
+  );
+}
+
+
+/* ============================================================
+   MAP RESET
+   ============================================================ */
+
+function resetMap() {
+
+  if (!map) return;
+
+  if (routeLine) {
+
+    map.removeLayer(routeLine);
+
+    routeLine = null;
+  }
+
+  if (startMarker) {
+
+    map.removeLayer(startMarker);
+
+    startMarker = null;
+  }
+
+  if (endMarker) {
+
+    map.removeLayer(endMarker);
+
+    endMarker = null;
+  }
+}
+
+
+/* ============================================================
+   UPDATE LIVE MAP
+   ============================================================ */
+
+function updateMap() {
+
+  if (!map || points.length === 0)
+    return;
+
+  const latLngs =
+    points.map(p => [
+      p.lat,
+      p.lon
+    ]);
+
+
+  if (routeLine) {
+
+    routeLine.setLatLngs(latLngs);
+
+  } else {
+
+    routeLine =
+      L.polyline(
+        latLngs,
+        {
+          weight: 5
+        }
+      ).addTo(map);
+  }
+
+
+  const first =
+    points[0];
+
+  const last =
+    points[points.length - 1];
+
+
+  if (!startMarker) {
+
+    startMarker =
+      L.marker([
+        first.lat,
+        first.lon
+      ])
+      .addTo(map)
+      .bindPopup("Start");
+  }
+
+
+  if (endMarker) {
+
+    endMarker.setLatLng([
+      last.lat,
+      last.lon
+    ]);
+
+  } else {
+
+    endMarker =
+      L.marker([
+        last.lat,
+        last.lon
+      ])
+      .addTo(map)
+      .bindPopup("Current");
+  }
+
+
+  map.setView(
+    [last.lat, last.lon],
+    Math.max(map.getZoom(), 16)
+  );
+}
+
+
+/* ============================================================
+   HAVERSINE
+   ============================================================ */
+
+function haversine(
+  lat1,
+  lon1,
+  lat2,
+  lon2
+) {
+
+  const R = 6371000;
+
+  const toRad =
+    x => x * Math.PI / 180;
+
+  const dLat =
+    toRad(lat2 - lat1);
+
+  const dLon =
+    toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+
+    Math.sin(dLon / 2) ** 2;
+
+  return (
+    2 *
+    R *
+    Math.asin(
+      Math.sqrt(a)
+    )
+  );
+}
+
+
+/* ============================================================
+   FORMAT TIME
+   ============================================================ */
+
+function formatDuration(seconds) {
+
+  seconds =
+    Math.max(
+      0,
+      Math.floor(seconds)
+    );
+
+  const h =
+    Math.floor(seconds / 3600);
+
+  const m =
+    Math.floor(
+      (seconds % 3600) / 60
+    );
+
+  const s =
+    seconds % 60;
+
+
+  if (h > 0) {
 
     return (
-      String(m).padStart(2, "0") + ":" +
+      String(h).padStart(2, "0") +
+      ":" +
+      String(m).padStart(2, "0") +
+      ":" +
       String(s).padStart(2, "0")
     );
   }
 
 
-  function formatPace(secondsPerKm) {
+  return (
+    String(m).padStart(2, "0") +
+    ":" +
+    String(s).padStart(2, "0")
+  );
+}
 
-    if (!isFinite(secondsPerKm) || secondsPerKm <= 0) {
-      return "--";
-    }
 
-    const minutes = Math.floor(secondsPerKm / 60);
-    const seconds = Math.floor(secondsPerKm % 60);
+/* ============================================================
+   FORMAT PACE
+   ============================================================ */
 
-    return (
-      minutes + ":" +
-      String(seconds).padStart(2, "0") +
-      " /km"
+function formatPace(
+  secondsPerKm
+) {
+
+  if (
+    !isFinite(secondsPerKm) ||
+    secondsPerKm <= 0
+  ) {
+
+    return "--";
+  }
+
+
+  const minutes =
+    Math.floor(
+      secondsPerKm / 60
     );
+
+  const seconds =
+    Math.floor(
+      secondsPerKm % 60
+    );
+
+
+  return (
+    minutes +
+    ":" +
+    String(seconds).padStart(2, "0") +
+    " /km"
+  );
+}
+
+
+/* ============================================================
+   UPDATE DISPLAY
+   ============================================================ */
+
+function updateDisplay() {
+
+  distanceEl.textContent =
+    (
+      totalMeters / 1000
+    ).toFixed(2) +
+    " km";
+
+
+  pointsCountEl.textContent =
+    points.length;
+
+
+  speedEl.textContent =
+    latestSpeed.toFixed(1) +
+    " km/h";
+
+
+  if (lastPosition) {
+
+    accuracyEl.textContent =
+      Math.round(
+        lastPosition.accuracy
+      ) +
+      " m";
   }
 
 
-  // ------------------------------------------------------------
-  // DISTANCE
-  // ------------------------------------------------------------
+  if (startTime) {
 
-  function haversine(lat1, lon1, lat2, lon2) {
+    const elapsed =
+      (
+        Date.now() -
+        startTime
+      ) / 1000;
 
-    const R = 6371000;
 
-    const toRad = x => x * Math.PI / 180;
+    elapsedEl.textContent =
+      formatDuration(elapsed);
 
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
 
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
+    if (
+      totalMeters >=
+      USEFUL_DISTANCE_METERS
+    ) {
 
-    return 2 * R * Math.asin(Math.sqrt(a));
+      const pace =
+        elapsed /
+        (totalMeters / 1000);
+
+
+      avgPaceEl.textContent =
+        formatPace(pace);
+
+    } else {
+
+      avgPaceEl.textContent =
+        "--";
+    }
+  }
+}
+
+
+/* ============================================================
+   SPLITS
+   ============================================================ */
+
+function updateSplits() {
+
+  if (splits.length === 0) {
+
+    splitsEl.innerHTML =
+      '<div class="empty">' +
+      'No splits yet.' +
+      '</div>';
+
+    return;
   }
 
 
-  // ------------------------------------------------------------
-  // UI
-  // ------------------------------------------------------------
+  splitsEl.innerHTML = "";
 
-  function updateDisplay() {
 
-    distanceEl.textContent =
-      (totalMeters / 1000).toFixed(2) + " km";
+  splits.forEach(split => {
 
-    pointsCountEl.textContent = points.length;
+    const row =
+      document.createElement("div");
 
-    speedEl.textContent =
-      latestSpeed.toFixed(1) + " km/h";
+    row.className =
+      "split";
 
-    if (lastPosition) {
 
-      accuracyEl.textContent =
-        Math.round(lastPosition.accuracy) + " m";
-    }
+    row.innerHTML = `
 
-    if (startTime) {
+      <span>
+        KM ${split.km}
+      </span>
 
-      const elapsed =
-        (Date.now() - startTime) / 1000;
+      <span>
+        ${formatPace(split.duration)}
+      </span>
 
-      elapsedEl.textContent =
-        formatDuration(elapsed);
+    `;
 
-      if (totalMeters >= MIN_USEFUL_DISTANCE_METERS) {
 
-        const pace =
-          elapsed / (totalMeters / 1000);
+    splitsEl.appendChild(row);
+  });
+}
 
-        avgPaceEl.textContent =
-          formatPace(pace);
 
-      } else {
+/* ============================================================
+   START RUN
+   ============================================================ */
 
-        avgPaceEl.textContent = "--";
-      }
-    }
+function startRun() {
+
+  if (!navigator.geolocation) {
+
+    statusEl.textContent =
+      "GPS is not available.";
+
+    return;
   }
 
 
-  function updateSplits() {
+  running = true;
 
-    if (splits.length === 0) {
+  startTime =
+    Date.now();
 
-      splitsEl.innerHTML =
-        '<div class="empty">No splits yet.</div>';
+  totalMeters = 0;
 
-      return;
-    }
+  lastPosition = null;
 
-    splitsEl.innerHTML = "";
+  points = [];
 
-    splits.forEach(split => {
+  splits = [];
 
-      const row = document.createElement("div");
+  nextKmMark = 1000;
 
-      row.className = "split";
+  lastSplitTime =
+    startTime;
 
-      row.innerHTML = `
-        <span>KM ${split.km}</span>
-        <span>${formatPace(split.duration)}</span>
-      `;
+  latestSpeed = 0;
 
-      splitsEl.appendChild(row);
-    });
-  }
+  movementEvidence = 0;
+
+  sensorSamples = [];
 
 
-  // ------------------------------------------------------------
-  // START
-  // ------------------------------------------------------------
+  warning.classList.add(
+    "hidden"
+  );
 
-  function startRun() {
 
-    if (!navigator.geolocation) {
+  stats.classList.remove(
+    "hidden"
+  );
 
-      status.textContent =
-        "GPS is not available in this browser.";
 
-      return;
-    }
+  runDetail.classList.add(
+    "hidden"
+  );
 
-    running = true;
 
-    startTime = Date.now();
+  exportButton.disabled =
+    true;
 
-    totalMeters = 0;
 
-    lastPosition = null;
+  runButton.textContent =
+    "STOP RUN";
 
-    points = [];
 
-    splits = [];
+  runButton.classList.add(
+    "stop"
+  );
 
-    nextKmMark = 1000;
 
-    lastSplitTime = startTime;
+  resetMap();
 
-    latestSpeed = 0;
 
-    movementEvidence = 0;
+  statusEl.textContent =
+    "Starting GPS...";
 
-    warning.classList.add("hidden");
 
-    stats.classList.remove("hidden");
+  elapsedTimer =
+    setInterval(
+      updateDisplay,
+      1000
+    );
 
-    exportButton.disabled = true;
 
-    runButton.textContent = "STOP RUN";
-
-    runButton.classList.add("stop");
-
-    status.textContent =
-      "Starting GPS... move when ready.";
-
-    updateDisplay();
-
-    elapsedTimer = setInterval(updateDisplay, 1000);
-
-    watchId = navigator.geolocation.watchPosition(
+  watchId =
+    navigator.geolocation.watchPosition(
       handlePosition,
       handleGpsError,
       {
@@ -480,463 +1122,675 @@
         timeout: 10000
       }
     );
+}
+
+
+/* ============================================================
+   GPS POSITION
+   ============================================================ */
+
+function handlePosition(
+  position
+) {
+
+  if (!running)
+    return;
+
+
+  const coords =
+    position.coords;
+
+
+  const accuracy =
+    coords.accuracy;
+
+
+  if (
+    !accuracy ||
+    accuracy > MAX_GPS_ACCURACY
+  ) {
+
+    statusEl.textContent =
+      "Waiting for better GPS (" +
+      Math.round(
+        accuracy || 0
+      ) +
+      " m)...";
+
+    return;
   }
 
 
-  // ------------------------------------------------------------
-  // GPS POSITION
-  // ------------------------------------------------------------
+  const current = {
 
-  function handlePosition(position) {
+    lat:
+      coords.latitude,
 
-    if (!running) return;
+    lon:
+      coords.longitude,
 
-    const coords = position.coords;
+    time:
+      position.timestamp,
 
-    const accuracy = coords.accuracy;
+    accuracy:
+      accuracy,
 
-    if (!accuracy || accuracy > MAX_ACCURACY_METERS) {
+    speed:
+      coords.speed != null
+        ? coords.speed
+        : null,
 
-      status.textContent =
-        "GPS accuracy too low (" +
-        Math.round(accuracy || 0) +
-        " m). Waiting for better GPS...";
-
-      return;
-    }
-
-    const current = {
-
-      lat: coords.latitude,
-
-      lon: coords.longitude,
-
-      time: position.timestamp,
-
-      accuracy: accuracy,
-
-      speed:
-        coords.speed != null
-          ? coords.speed
-          : null,
-
-      altitude:
-        coords.altitude != null
-          ? coords.altitude
-          : null
-    };
+    altitude:
+      coords.altitude != null
+        ? coords.altitude
+        : null
+  };
 
 
-    // First GPS point
+  /* ----------------------------------------------------------
+     FIRST POINT
+     ---------------------------------------------------------- */
 
-    if (!lastPosition) {
+  if (!lastPosition) {
 
-      lastPosition = current;
+    lastPosition =
+      current;
 
-      points.push(current);
+    points.push(
+      current
+    );
 
-      status.textContent =
-        "GPS locked. Start moving.";
+    updateMap();
 
-      updateDisplay();
+    updateDisplay();
 
-      return;
-    }
+    statusEl.textContent =
+      "GPS locked. Start moving.";
 
-
-    const dtSeconds =
-      (current.time - lastPosition.time) / 1000;
-
-    if (dtSeconds <= 0) return;
+    return;
+  }
 
 
-    const dMeters = haversine(
-      lastPosition.lat,
-      lastPosition.lon,
+  const previous =
+    lastPosition;
+
+
+  const dtSeconds =
+    (
+      current.time -
+      previous.time
+    ) / 1000;
+
+
+  if (dtSeconds <= 0)
+    return;
+
+
+  const dMeters =
+    haversine(
+      previous.lat,
+      previous.lon,
       current.lat,
       current.lon
     );
 
 
-    // Derived speed
-
-    const derivedSpeed =
-      dMeters / dtSeconds;
-
-
-    // Reject physically unreasonable GPS jumps
-
-    if (derivedSpeed > MAX_REASONABLE_SPEED_MS) {
-
-      status.textContent =
-        "Ignoring GPS jump.";
-
-      return;
-    }
+  const derivedSpeed =
+    dMeters /
+    dtSeconds;
 
 
-    // Update latest position even when movement is tiny
+  /* ----------------------------------------------------------
+     REJECT GPS JUMP
+     ---------------------------------------------------------- */
 
-    lastPosition = current;
+  if (
+    derivedSpeed >
+    MAX_REASONABLE_SPEED_MS
+  ) {
 
-    points.push(current);
+    statusEl.textContent =
+      "Ignoring GPS jump.";
 
-
-    // Ignore very small movements for distance
-
-    if (dMeters < MIN_MOVEMENT_METERS) {
-
-      updateDisplay();
-
-      return;
-    }
-
-
-    // Count movement evidence
-
-    if (derivedSpeed > 1.0) {
-
-      movementEvidence++;
-    }
-
-    if (coords.speed != null && coords.speed > 1.0) {
-
-      movementEvidence++;
-    }
+    return;
+  }
 
 
-    // Add distance
+  /* ----------------------------------------------------------
+     ACCEPT POSITION
+     ---------------------------------------------------------- */
 
-    const distanceBefore = totalMeters;
-
-    const distanceAfter =
-      totalMeters + dMeters;
-
-
-    // Current speed
-
-    latestSpeed =
-      derivedSpeed * 3.6;
+  lastPosition =
+    current;
 
 
-    // ----------------------------------------------------------
-    // 1 KM SPLIT INTERPOLATION
-    // ----------------------------------------------------------
-
-    while (distanceAfter >= nextKmMark) {
-
-      const distanceToMark =
-        nextKmMark - distanceBefore;
-
-      const fraction =
-        distanceToMark / dMeters;
-
-      const splitTimestamp =
-        lastPosition.time -
-        (1 - fraction) *
-        (current.time - lastPosition.time);
-
-      const splitDuration =
-        (splitTimestamp - lastSplitTime) / 1000;
-
-      splits.push({
-
-        km: Math.round(nextKmMark / 1000),
-
-        timeAtKm: splitTimestamp,
-
-        duration: splitDuration
-      });
-
-      lastSplitTime = splitTimestamp;
-
-      nextKmMark += 1000;
-    }
+  points.push(
+    current
+  );
 
 
-    totalMeters = distanceAfter;
+  /* ----------------------------------------------------------
+     TINY MOVEMENT
+     ---------------------------------------------------------- */
 
-    status.textContent =
-      "Tracking run...";
+  if (
+    dMeters <
+    MIN_SEGMENT_METERS
+  ) {
+
+    updateMap();
 
     updateDisplay();
 
-    updateSplits();
+    return;
   }
 
 
-  // ------------------------------------------------------------
-  // GPS ERROR
-  // ------------------------------------------------------------
+  /* ----------------------------------------------------------
+     MOVEMENT EVIDENCE
+     ---------------------------------------------------------- */
 
-  function handleGpsError(error) {
+  if (
+    derivedSpeed > 1.0
+  ) {
 
-    if (!running) return;
-
-    if (error.code === 1) {
-
-      status.textContent =
-        "GPS permission denied.";
-
-    } else if (error.code === 2) {
-
-      status.textContent =
-        "GPS position unavailable.";
-
-    } else if (error.code === 3) {
-
-      status.textContent =
-        "GPS timeout. Still trying...";
-
-    } else {
-
-      status.textContent =
-        "GPS error.";
-    }
+    movementEvidence++;
   }
 
 
-  // ------------------------------------------------------------
-  // STOP
-  // ------------------------------------------------------------
+  if (
+    coords.speed != null &&
+    coords.speed > 1.0
+  ) {
 
-  function stopRun() {
-
-    if (!running) return;
-
-    running = false;
-
-    if (watchId !== null) {
-
-      navigator.geolocation.clearWatch(watchId);
-
-      watchId = null;
-    }
-
-    if (elapsedTimer !== null) {
-
-      clearInterval(elapsedTimer);
-
-      elapsedTimer = null;
-    }
-
-    updateDisplay();
-
-    runButton.textContent = "START RUN";
-
-    runButton.classList.remove("stop");
-
-    exportButton.disabled =
-      points.length === 0;
-
-
-    const elapsed =
-      (Date.now() - startTime) / 1000;
-
-
-    // Very little movement
-
-    if (
-      totalMeters < MIN_USEFUL_DISTANCE_METERS &&
-      movementEvidence < 2
-    ) {
-
-      warning.classList.remove("hidden");
-
-      runButton.style.display = "none";
-
-      status.textContent =
-        "Run stopped.";
-
-      return;
-    }
-
-
-    // Normal run
-
-    saveRun();
-
-    status.textContent =
-      "Run saved.";
-
+    movementEvidence++;
   }
 
 
-  // ------------------------------------------------------------
-  // SAVE RUN
-  // ------------------------------------------------------------
+  /* ----------------------------------------------------------
+     DISTANCE
+     ---------------------------------------------------------- */
 
-  function saveRun() {
-
-    const elapsed =
-      (Date.now() - startTime) / 1000;
-
-    const averagePace =
-      totalMeters > 0
-        ? elapsed / (totalMeters / 1000)
-        : null;
-
-    const run = {
-
-      id: Date.now(),
-
-      date: new Date().toISOString(),
-
-      duration: elapsed,
-
-      distanceMeters: totalMeters,
-
-      averagePace: averagePace,
-
-      averageSpeed:
-        elapsed > 0
-          ? (totalMeters / elapsed) * 3.6
-          : 0,
-
-      splits: splits,
-
-      points: points
-    };
+  const distanceBefore =
+    totalMeters;
 
 
-    let history = [];
-
-    try {
-
-      history =
-        JSON.parse(
-          localStorage.getItem("myDiyRuns") || "[]"
-        );
-
-    } catch (e) {
-
-      history = [];
-    }
+  const distanceAfter =
+    totalMeters +
+    dMeters;
 
 
-    history.unshift(run);
+  /* ----------------------------------------------------------
+     SPEED
+     ---------------------------------------------------------- */
 
+  latestSpeed =
+    derivedSpeed * 3.6;
+
+
+  /* ----------------------------------------------------------
+     KM SPLITS
+     ---------------------------------------------------------- */
+
+  while (
+    distanceAfter >=
+    nextKmMark
+  ) {
+
+    const distanceToMark =
+      nextKmMark -
+      distanceBefore;
+
+
+    const fraction =
+      distanceToMark /
+      dMeters;
+
+
+    const splitTimestamp =
+      previous.time +
+      fraction *
+      (
+        current.time -
+        previous.time
+      );
+
+
+    const splitDuration =
+      (
+        splitTimestamp -
+        lastSplitTime
+      ) / 1000;
+
+
+    splits.push({
+
+      km:
+        Math.round(
+          nextKmMark / 1000
+        ),
+
+      timeAtKm:
+        splitTimestamp,
+
+      duration:
+        splitDuration
+
+    });
+
+
+    lastSplitTime =
+      splitTimestamp;
+
+
+    nextKmMark +=
+      1000;
+  }
+
+
+  totalMeters =
+    distanceAfter;
+
+
+  statusEl.textContent =
+    "Tracking run...";
+
+
+  updateMap();
+
+  updateDisplay();
+
+  updateSplits();
+}
+
+
+/* ============================================================
+   GPS ERROR
+   ============================================================ */
+
+function handleGpsError(
+  error
+) {
+
+  if (!running)
+    return;
+
+
+  if (error.code === 1) {
+
+    statusEl.textContent =
+      "GPS permission denied.";
+
+  } else if (
+    error.code === 2
+  ) {
+
+    statusEl.textContent =
+      "GPS unavailable.";
+
+  } else if (
+    error.code === 3
+  ) {
+
+    statusEl.textContent =
+      "GPS timeout. Still trying...";
+
+  } else {
+
+    statusEl.textContent =
+      "GPS error.";
+  }
+}
+
+
+/* ============================================================
+   STOP RUN
+   ============================================================ */
+
+function stopRun() {
+
+  if (!running)
+    return;
+
+
+  running = false;
+
+
+  if (
+    watchId !== null
+  ) {
+
+    navigator.geolocation.clearWatch(
+      watchId
+    );
+
+    watchId = null;
+  }
+
+
+  if (
+    elapsedTimer !== null
+  ) {
+
+    clearInterval(
+      elapsedTimer
+    );
+
+    elapsedTimer = null;
+  }
+
+
+  updateDisplay();
+
+
+  runButton.textContent =
+    "START RUN";
+
+
+  runButton.classList.remove(
+    "stop"
+  );
+
+
+  exportButton.disabled =
+    points.length === 0;
+
+
+  /* ----------------------------------------------------------
+     LOW MOVEMENT CHECK
+     ---------------------------------------------------------- */
+
+  if (
+    totalMeters <
+      USEFUL_DISTANCE_METERS &&
+    movementEvidence < 2
+  ) {
+
+    warning.classList.remove(
+      "hidden"
+    );
+
+
+    runButton.style.display =
+      "none";
+
+
+    statusEl.textContent =
+      "Run stopped.";
+
+    return;
+  }
+
+
+  /* ----------------------------------------------------------
+     NORMAL RUN
+     ---------------------------------------------------------- */
+
+  saveRun();
+
+
+  statusEl.textContent =
+    "Run saved.";
+
+}
+
+
+/* ============================================================
+   BUILD RUN OBJECT
+   ============================================================ */
+
+function buildRunObject() {
+
+  const duration =
+    (
+      Date.now() -
+      startTime
+    ) / 1000;
+
+
+  const averagePace =
+    totalMeters > 0
+      ? duration /
+        (totalMeters / 1000)
+      : null;
+
+
+  const averageSpeed =
+    duration > 0
+      ? (
+          totalMeters /
+          duration
+        ) * 3.6
+      : 0;
+
+
+  return {
+
+    id:
+      Date.now(),
+
+    date:
+      new Date().toISOString(),
+
+    duration:
+      duration,
+
+    distanceMeters:
+      totalMeters,
+
+    averagePace:
+      averagePace,
+
+    averageSpeed:
+      averageSpeed,
+
+    splits:
+      splits,
+
+    points:
+      points,
+
+    sensorSamples:
+      sensorSamples,
+
+    sensorEnabled:
+      sensorEnabled,
+
+    movementEvidence:
+      movementEvidence
+  };
+}
+
+
+/* ============================================================
+   SAVE RUN
+   ============================================================ */
+
+function saveRun() {
+
+  const run =
+    buildRunObject();
+
+
+  let history = [];
+
+
+  try {
+
+    history =
+      JSON.parse(
+        localStorage.getItem(
+          "myDiyRuns"
+        ) || "[]"
+      );
+
+  } catch (e) {
+
+    history = [];
+  }
+
+
+  history.unshift(
+    run
+  );
+
+
+  try {
 
     localStorage.setItem(
       "myDiyRuns",
       JSON.stringify(history)
     );
 
+  } catch (e) {
 
-    renderHistory();
+    alert(
+      "Could not save the run. " +
+      "Browser storage may be full."
+    );
+
+    return;
   }
 
 
-  // ------------------------------------------------------------
-  // DISCARD
-  // ------------------------------------------------------------
+  renderHistory();
+}
 
-  function discardRun() {
 
-    points = [];
+/* ============================================================
+   DISCARD
+   ============================================================ */
 
-    splits = [];
+function discardRun() {
 
-    totalMeters = 0;
+  points = [];
 
-    exportButton.disabled = true;
+  splits = [];
 
-    warning.classList.add("hidden");
+  totalMeters = 0;
 
-    runButton.style.display = "block";
+  sensorSamples = [];
 
-    status.textContent =
-      "Run discarded.";
+  exportButton.disabled =
+    true;
 
-    updateDisplay();
 
-    updateSplits();
+  warning.classList.add(
+    "hidden"
+  );
+
+
+  runButton.style.display =
+    "block";
+
+
+  statusEl.textContent =
+    "Run discarded.";
+
+
+  updateDisplay();
+
+  updateSplits();
+
+  resetMap();
+}
+
+
+/* ============================================================
+   SAVE ANYWAY
+   ============================================================ */
+
+function saveAnyway() {
+
+  saveRun();
+
+
+  warning.classList.add(
+    "hidden"
+  );
+
+
+  runButton.style.display =
+    "block";
+
+
+  statusEl.textContent =
+    "Run saved.";
+}
+
+
+/* ============================================================
+   HISTORY
+   ============================================================ */
+
+function getHistory() {
+
+  try {
+
+    return JSON.parse(
+      localStorage.getItem(
+        "myDiyRuns"
+      ) || "[]"
+    );
+
+  } catch (e) {
+
+    return [];
+  }
+}
+
+
+/* ============================================================
+   RENDER HISTORY
+   ============================================================ */
+
+function renderHistory() {
+
+  const history =
+    getHistory();
+
+
+  if (
+    history.length === 0
+  ) {
+
+    historyEl.innerHTML =
+      '<div class="empty">' +
+      'No saved runs yet.' +
+      '</div>';
+
+    return;
   }
 
 
-  // ------------------------------------------------------------
-  // SAVE ANYWAY
-  // ------------------------------------------------------------
-
-  function saveAnyway() {
-
-    saveRun();
-
-    warning.classList.add("hidden");
-
-    runButton.style.display = "block";
-
-    status.textContent =
-      "Run saved.";
-
-  }
+  historyEl.innerHTML = "";
 
 
-  // ------------------------------------------------------------
-  // HISTORY
-  // ------------------------------------------------------------
-
-  function renderHistory() {
-
-    let history = [];
-
-    try {
-
-      history =
-        JSON.parse(
-          localStorage.getItem("myDiyRuns") || "[]"
-        );
-
-    } catch (e) {
-
-      history = [];
-    }
-
-
-    if (history.length === 0) {
-
-      historyEl.innerHTML =
-        '<div class="empty">No saved runs yet.</div>';
-
-      return;
-    }
-
-
-    historyEl.innerHTML = "";
-
-
-    history.forEach(run => {
+  history.forEach(
+    run => {
 
       const date =
         new Date(run.date);
 
 
       const dateText =
-        date.toLocaleDateString(
+        date.toLocaleString(
           undefined,
           {
             day: "2-digit",
             month: "short",
-            year: "numeric"
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
           }
         );
 
 
-      const timeText =
-        formatDuration(run.duration);
-
-
-      const distanceText =
-        (run.distanceMeters / 1000).toFixed(2)
-        + " km";
-
-
-      const paceText =
-        formatPace(run.averagePace);
-
-
       const div =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
+
 
       div.className =
         "history-run";
@@ -949,208 +1803,627 @@
         </div>
 
         <div class="history-details">
-          ${distanceText}
+
+          ${(run.distanceMeters / 1000)
+            .toFixed(2)} km
+
           &nbsp; • &nbsp;
-          ${timeText}
+
+          ${formatDuration(
+            run.duration
+          )}
+
           &nbsp; • &nbsp;
-          ${paceText}
+
+          ${formatPace(
+            run.averagePace
+          )}
+
         </div>
 
       `;
 
 
-      div.onclick = function() {
-
-        showRunDetails(run);
-      };
+      div.onclick =
+        () => showRunDetails(run);
 
 
-      historyEl.appendChild(div);
-    });
+      historyEl.appendChild(
+        div
+      );
+    }
+  );
+}
+
+
+/* ============================================================
+   SHOW RUN DETAILS
+   ============================================================ */
+
+function showRunDetails(
+  run
+) {
+
+  runDetail.classList.remove(
+    "hidden"
+  );
+
+
+  const date =
+    new Date(run.date);
+
+
+  let splitHTML =
+    "";
+
+
+  if (
+    run.splits &&
+    run.splits.length > 0
+  ) {
+
+    splitHTML =
+      "<h3>1 km Splits</h3>";
+
+
+    run.splits.forEach(
+      split => {
+
+        splitHTML += `
+
+          <div class="split">
+
+            <span>
+              KM ${split.km}
+            </span>
+
+            <span>
+              ${formatPace(
+                split.duration
+              )}
+            </span>
+
+          </div>
+
+        `;
+      }
+    );
   }
 
 
-  // ------------------------------------------------------------
-  // VIEW OLD RUN
-  // ------------------------------------------------------------
-
-  function showRunDetails(run) {
-
-    const date =
-      new Date(run.date);
+  const sensorText =
+    run.sensorEnabled
+      ? "Enabled"
+      : "Not enabled";
 
 
-    const dateText =
-      date.toLocaleString();
+  detailContent.innerHTML = `
+
+    <strong>
+      ${date.toLocaleString()}
+    </strong>
+
+    <div class="detail-grid">
+
+      <div class="detail-item">
+        <div class="small">
+          Distance
+        </div>
+        <strong>
+          ${(run.distanceMeters / 1000)
+            .toFixed(2)} km
+        </strong>
+      </div>
+
+      <div class="detail-item">
+        <div class="small">
+          Time
+        </div>
+        <strong>
+          ${formatDuration(
+            run.duration
+          )}
+        </strong>
+      </div>
+
+      <div class="detail-item">
+        <div class="small">
+          Average Pace
+        </div>
+        <strong>
+          ${formatPace(
+            run.averagePace
+          )}
+        </strong>
+      </div>
+
+      <div class="detail-item">
+        <div class="small">
+          Average Speed
+        </div>
+        <strong>
+          ${run.averageSpeed.toFixed(1)}
+          km/h
+        </strong>
+      </div>
+
+      <div class="detail-item">
+        <div class="small">
+          GPS Points
+        </div>
+        <strong>
+          ${run.points.length}
+        </strong>
+      </div>
+
+      <div class="detail-item">
+        <div class="small">
+          Phone Sensors
+        </div>
+        <strong>
+          ${sensorText}
+        </strong>
+      </div>
+
+    </div>
+
+    ${splitHTML}
+
+  `;
 
 
-    let message =
-
-      "RUN DETAILS\n\n" +
-
-      dateText +
-
-      "\n\nDistance: " +
-      (run.distanceMeters / 1000).toFixed(2) +
-      " km" +
-
-      "\nTime: " +
-      formatDuration(run.duration) +
-
-      "\nAverage pace: " +
-      formatPace(run.averagePace) +
-
-      "\nAverage speed: " +
-      run.averageSpeed.toFixed(1) +
-      " km/h" +
-
-      "\nGPS points: " +
-      run.points.length;
+  drawHistoricalRoute(
+    run.points
+  );
 
 
-    if (run.splits.length > 0) {
+  runDetail.scrollIntoView({
+    behavior: "smooth"
+  });
+}
 
-      message += "\n\n1 KM SPLITS\n";
 
-      run.splits.forEach(split => {
+/* ============================================================
+   DRAW HISTORICAL ROUTE
+   ============================================================ */
 
-        message +=
-          "KM " +
-          split.km +
-          ": " +
-          formatPace(split.duration) +
-          "\n";
-      });
+function drawHistoricalRoute(
+  historicalPoints
+) {
+
+  if (!historicalPoints ||
+      historicalPoints.length === 0)
+    return;
+
+
+  if (detailMap) {
+
+    detailMap.remove();
+  }
+
+
+  detailMap =
+    L.map(
+      "detailMap"
+    );
+
+
+  L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      maxZoom: 19,
+      attribution:
+        '&copy; OpenStreetMap contributors'
+    }
+  ).addTo(
+    detailMap
+  );
+
+
+  const latLngs =
+    historicalPoints.map(
+      p => [
+        p.lat,
+        p.lon
+      ]
+    );
+
+
+  const line =
+    L.polyline(
+      latLngs,
+      {
+        weight: 5
+      }
+    ).addTo(
+      detailMap
+    );
+
+
+  L.marker(
+    latLngs[0]
+  )
+  .addTo(detailMap)
+  .bindPopup("Start");
+
+
+  L.marker(
+    latLngs[
+      latLngs.length - 1
+    ]
+  )
+  .addTo(detailMap)
+  .bindPopup("Finish");
+
+
+  detailMap.fitBounds(
+    line.getBounds(),
+    {
+      padding: [20,20]
+    }
+  );
+}
+
+
+/* ============================================================
+   SENSOR PERMISSION
+   ============================================================ */
+
+async function enableSensors() {
+
+  /*
+    iOS Safari requires explicit permission
+    for motion/orientation sensors.
+  */
+
+  try {
+
+    if (
+      typeof DeviceMotionEvent !==
+      "undefined" &&
+
+      typeof DeviceMotionEvent.requestPermission ===
+      "function"
+    ) {
+
+      const permission =
+        await DeviceMotionEvent
+          .requestPermission();
+
+
+      if (
+        permission !== "granted"
+      ) {
+
+        sensorStatus.textContent =
+          "Phone sensors: permission denied.";
+
+        return;
+      }
     }
 
 
-    alert(message);
+    window.addEventListener(
+      "devicemotion",
+      handleMotion
+    );
+
+
+    window.addEventListener(
+      "deviceorientation",
+      handleOrientation
+    );
+
+
+    sensorEnabled = true;
+
+
+    sensorButton.textContent =
+      "PHONE SENSORS ENABLED";
+
+
+    sensorStatus.textContent =
+      "Phone sensors: collecting motion data.";
+
+
+  } catch (error) {
+
+    sensorStatus.textContent =
+      "Phone sensors could not be enabled.";
+
+    console.log(error);
   }
+}
 
 
-  // ------------------------------------------------------------
-  // GPX EXPORT
-  // ------------------------------------------------------------
+/* ============================================================
+   MOTION DATA
+   ============================================================ */
 
-  function exportGPX() {
+function handleMotion(
+  event
+) {
 
-    if (points.length === 0) return;
+  if (!running)
+    return;
 
 
-    let gpx =
+  const acceleration =
+    event.accelerationIncludingGravity;
+
+
+  const accelerationNoGravity =
+    event.acceleration;
+
+
+  const rotation =
+    event.rotationRate;
+
+
+  sensorSamples.push({
+
+    time:
+      Date.now(),
+
+    acceleration: {
+
+      x:
+        acceleration?.x ?? null,
+
+      y:
+        acceleration?.y ?? null,
+
+      z:
+        acceleration?.z ?? null
+    },
+
+    linearAcceleration: {
+
+      x:
+        accelerationNoGravity?.x ?? null,
+
+      y:
+        accelerationNoGravity?.y ?? null,
+
+      z:
+        accelerationNoGravity?.z ?? null
+    },
+
+    rotation: {
+
+      alpha:
+        rotation?.alpha ?? null,
+
+      beta:
+        rotation?.beta ?? null,
+
+      gamma:
+        rotation?.gamma ?? null
+    }
+
+  });
+
+
+  /*
+    Keep browser storage manageable.
+
+    We only retain the most recent
+    20,000 sensor samples per run.
+  */
+
+  if (
+    sensorSamples.length >
+    20000
+  ) {
+
+    sensorSamples.shift();
+  }
+}
+
+
+/* ============================================================
+   ORIENTATION
+   ============================================================ */
+
+function handleOrientation(
+  event
+) {
+
+  if (!running)
+    return;
+
+
+  /*
+    Orientation is currently collected
+    for future analysis.
+
+    We deliberately do NOT use it to
+    alter GPS distance yet.
+  */
+
+  const last =
+    sensorSamples[
+      sensorSamples.length - 1
+    ];
+
+
+  if (last) {
+
+    last.orientation = {
+
+      alpha:
+        event.alpha ?? null,
+
+      beta:
+        event.beta ?? null,
+
+      gamma:
+        event.gamma ?? null
+    };
+  }
+}
+
+
+/* ============================================================
+   GPX EXPORT
+   ============================================================ */
+
+function exportGPX() {
+
+  if (
+    points.length === 0
+  )
+    return;
+
+
+  let gpx =
 
 `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1"
-     creator="My DIY Run"
-     xmlns="http://www.topografix.com/GPX/1/1">
+<gpx
+  version="1.1"
+  creator="My DIY Run"
+  xmlns="http://www.topografix.com/GPX/1/1">
 
 <trk>
+
 <name>My DIY Run</name>
+
 <trkseg>
 `;
 
 
-    points.forEach(point => {
+  points.forEach(
+    point => {
 
       gpx +=
         `<trkpt lat="${point.lat}" lon="${point.lon}">`;
 
-      if (point.altitude != null) {
+
+      if (
+        point.altitude != null
+      ) {
 
         gpx +=
           `<ele>${point.altitude}</ele>`;
       }
 
+
       gpx +=
-        `<time>${new Date(point.time).toISOString()}</time>`;
+        `<time>${new Date(
+          point.time
+        ).toISOString()}</time>`;
+
 
       gpx +=
         `</trkpt>\n`;
-    });
-
-
-    gpx +=
-`
-</trkseg>
-</trk>
-</gpx>`;
-
-
-    const blob =
-      new Blob(
-        [gpx],
-        {
-          type: "application/gpx+xml"
-        }
-      );
-
-
-    const url =
-      URL.createObjectURL(blob);
-
-
-    const a =
-      document.createElement("a");
-
-
-    a.href = url;
-
-    a.download =
-      "my-diy-run-" +
-      new Date().toISOString().slice(0,10) +
-      ".gpx";
-
-
-    a.click();
-
-
-    URL.revokeObjectURL(url);
-  }
-
-
-  // ------------------------------------------------------------
-  // BUTTON EVENTS
-  // ------------------------------------------------------------
-
-  runButton.addEventListener(
-    "click",
-    function() {
-
-      if (running) {
-
-        stopRun();
-
-      } else {
-
-        startRun();
-      }
     }
   );
 
 
-  discardButton.addEventListener(
-    "click",
-    discardRun
+  gpx +=
+
+`
+</trkseg>
+
+</trk>
+
+</gpx>`;
+
+
+  const blob =
+    new Blob(
+      [gpx],
+      {
+        type:
+          "application/gpx+xml"
+      }
+    );
+
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+
+  const a =
+    document.createElement(
+      "a"
+    );
+
+
+  a.href = url;
+
+
+  a.download =
+    "my-diy-run-" +
+    new Date()
+      .toISOString()
+      .slice(0,10) +
+    ".gpx";
+
+
+  a.click();
+
+
+  URL.revokeObjectURL(
+    url
   );
+}
 
 
-  saveAnywayButton.addEventListener(
-    "click",
-    saveAnyway
-  );
+/* ============================================================
+   BUTTON EVENTS
+   ============================================================ */
+
+runButton.addEventListener(
+  "click",
+  function() {
+
+    if (running) {
+
+      stopRun();
+
+    } else {
+
+      startRun();
+    }
+  }
+);
 
 
-  exportButton.addEventListener(
-    "click",
-    exportGPX
-  );
+sensorButton.addEventListener(
+  "click",
+  enableSensors
+);
 
 
-  // ------------------------------------------------------------
-  // INITIAL LOAD
-  // ------------------------------------------------------------
+discardButton.addEventListener(
+  "click",
+  discardRun
+);
 
-  renderHistory();
+
+saveAnywayButton.addEventListener(
+  "click",
+  saveAnyway
+);
+
+
+exportButton.addEventListener(
+  "click",
+  exportGPX
+);
+
+
+/* ============================================================
+   INITIALISE
+   ============================================================ */
+
+initialiseMap();
+
+renderHistory();
+
 
 </script>
 
