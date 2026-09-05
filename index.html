@@ -158,7 +158,6 @@ let startTime = null;
 let lastPosition = null;
 
 let totalDistance = 0;
-
 let timerInterval = null;
 
 let lastSplitTime = 0;
@@ -166,8 +165,12 @@ let splitNumber = 1;
 
 let isRunning = false;
 
-// Track whether GPS has ever reported meaningful speed
-let hasMovementSpeed = false;
+let hasMovement = false;
+
+
+// Minimum distance between GPS points that we will count.
+// This helps reduce small GPS movements while stationary.
+const MIN_MOVEMENT_METRES = 5;
 
 
 // Convert degrees to radians
@@ -177,7 +180,7 @@ function toRadians(degrees) {
 }
 
 
-// Calculate distance between GPS coordinates
+// Calculate distance between two GPS coordinates
 function distanceBetween(
     lat1,
     lon1,
@@ -214,7 +217,7 @@ function distanceBetween(
 }
 
 
-// Format time
+// Format elapsed time
 function formatTime(seconds) {
 
     seconds = Math.floor(seconds);
@@ -232,10 +235,8 @@ function formatTime(seconds) {
 
     return String(hours).padStart(2, "0") +
            ":" +
-
            String(minutes).padStart(2, "0") +
            ":" +
-
            String(secs).padStart(2, "0");
 }
 
@@ -258,12 +259,11 @@ function formatPace(secondsPerKm) {
 
     return String(minutes).padStart(2, "0") +
            ":" +
-
            String(seconds).padStart(2, "0");
 }
 
 
-// Update timer
+// Update timer and average pace
 function updateTimer() {
 
     if (!startTime) return;
@@ -271,10 +271,14 @@ function updateTimer() {
     const elapsed =
         (Date.now() - startTime) / 1000;
 
+
     document.getElementById("time").innerText =
         formatTime(elapsed);
 
-    if (totalDistance > 0) {
+
+    // Don't show pace until we have at least
+    // 100 metres of meaningful movement.
+    if (totalDistance >= 100) {
 
         const averagePace =
             elapsed /
@@ -282,11 +286,16 @@ function updateTimer() {
 
         document.getElementById("pace").innerText =
             formatPace(averagePace);
+
+    } else {
+
+        document.getElementById("pace").innerText =
+            "--:--";
     }
 }
 
 
-// START / STOP button
+// START / STOP
 function toggleRun() {
 
     if (isRunning) {
@@ -311,9 +320,11 @@ function startRun() {
         return;
     }
 
+
     isRunning = true;
 
-    hasMovementSpeed = false;
+    hasMovement = false;
+
 
     const button =
         document.getElementById("runButton");
@@ -323,8 +334,10 @@ function startRun() {
 
     button.classList.add("running");
 
-    document.getElementById("noMovement").style.display =
-        "none";
+
+    document.getElementById("noMovement")
+        .style.display = "none";
+
 
     startTime =
         Date.now();
@@ -337,20 +350,24 @@ function startRun() {
 
     splitNumber = 1;
 
-    document.getElementById("distance").innerText =
-        "0.00";
 
-    document.getElementById("time").innerText =
-        "00:00:00";
+    document.getElementById("distance")
+        .innerText = "0.00";
 
-    document.getElementById("pace").innerText =
-        "--:--";
+    document.getElementById("time")
+        .innerText = "00:00:00";
 
-    document.getElementById("splits").innerHTML =
-        "";
+    document.getElementById("pace")
+        .innerText = "--:--";
 
-    document.getElementById("status").innerText =
+    document.getElementById("splits")
+        .innerHTML = "";
+
+
+    document.getElementById("status")
+        .innerText =
         "Getting GPS...";
+
 
     timerInterval =
         setInterval(
@@ -368,29 +385,15 @@ function startRun() {
                 position.coords;
 
 
-            document.getElementById("status").innerText =
+            document.getElementById("status")
+                .innerText =
                 "GPS accuracy: " +
-                Math.round(
-                    current.accuracy
-                ) +
+                Math.round(current.accuracy) +
                 " m";
 
 
-            // Check GPS reported speed
-            if (
-                current.speed !== null &&
-                current.speed !== undefined &&
-                current.speed > 1.0
-            ) {
-
-                hasMovementSpeed = true;
-            }
-
-
-            // First GPS position
-            if (
-                lastPosition === null
-            ) {
+            // First GPS reading
+            if (lastPosition === null) {
 
                 lastPosition = {
 
@@ -405,10 +408,8 @@ function startRun() {
             }
 
 
-            // Ignore poor GPS readings
-            if (
-                current.accuracy > 50
-            ) {
+            // Ignore GPS readings with poor accuracy
+            if (current.accuracy > 50) {
 
                 return;
             }
@@ -425,13 +426,40 @@ function startRun() {
                 );
 
 
-            // Ignore very large GPS jumps
+            /*
+             Ignore tiny GPS movements.
+
+             If the phone is sitting still and GPS
+             moves by only a few metres, we don't
+             count that as actual movement.
+            */
+
+            if (
+                segmentDistance <
+                MIN_MOVEMENT_METRES
+            ) {
+
+                return;
+            }
+
+
+            /*
+             Ignore very large jumps.
+
+             This protects against GPS suddenly
+             jumping to an incorrect location.
+            */
+
             if (
                 segmentDistance > 50
             ) {
 
                 return;
             }
+
+
+            // We have meaningful movement
+            hasMovement = true;
 
 
             totalDistance +=
@@ -448,7 +476,9 @@ function startRun() {
             };
 
 
-            document.getElementById("distance").innerText =
+            // Display distance
+            document.getElementById("distance")
+                .innerText =
                 (
                     totalDistance / 1000
                 ).toFixed(2);
@@ -465,6 +495,7 @@ function startRun() {
 
                 const elapsed =
                     (now - startTime) / 1000;
+
 
                 const splitTime =
                     elapsed -
@@ -504,7 +535,8 @@ function startRun() {
 
         function(error) {
 
-            document.getElementById("status").innerText =
+            document.getElementById("status")
+                .innerText =
                 "GPS error: " +
                 error.message;
         },
@@ -559,32 +591,32 @@ function stopRun() {
 
 
     /*
-       Decide whether meaningful movement occurred.
-
-       For this first version:
-       - Less than 100 metres AND
-       - GPS never reported speed > 1 m/s
-
-       = probably no movement.
+       If we have less than 100 metres AND
+       no meaningful GPS movement occurred,
+       ask the user whether to discard it.
     */
 
     if (
         totalDistance < 100 &&
-        !hasMovementSpeed
+        !hasMovement
     ) {
 
         document.getElementById("finalDistance")
             .innerText =
-            (totalDistance / 1000)
-            .toFixed(2);
+            (
+                totalDistance / 1000
+            ).toFixed(2);
+
 
         document.getElementById("finalTime")
             .innerText =
             formatTime(elapsed);
 
+
         document.getElementById("noMovement")
             .style.display =
             "block";
+
 
         document.getElementById("status")
             .innerText =
@@ -602,7 +634,7 @@ function stopRun() {
 }
 
 
-// DISCARD
+// DISCARD RUN
 function discardRun() {
 
     totalDistance = 0;
@@ -610,6 +642,9 @@ function discardRun() {
     startTime = null;
 
     lastPosition = null;
+
+    hasMovement = false;
+
 
     document.getElementById("distance")
         .innerText =
@@ -627,9 +662,11 @@ function discardRun() {
         .innerHTML =
         "";
 
+
     document.getElementById("noMovement")
         .style.display =
         "none";
+
 
     document.getElementById("status")
         .innerText =
