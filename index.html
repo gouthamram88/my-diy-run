@@ -3,43 +3,367 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>My DIY Run</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        h1 {
+            margin-bottom: 25px;
+        }
+
+        .metric {
+            margin: 20px 0;
+        }
+
+        .value {
+            font-size: 42px;
+            font-weight: bold;
+        }
+
+        .label {
+            font-size: 16px;
+            color: #666;
+        }
+
+        button {
+            font-size: 20px;
+            padding: 14px 25px;
+            margin: 10px;
+            border-radius: 10px;
+            border: none;
+        }
+
+        #startButton {
+            background: #2e7d32;
+            color: white;
+        }
+
+        #stopButton {
+            background: #c62828;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 30px;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #status {
+            margin-top: 20px;
+            color: #555;
+        }
+    </style>
 </head>
 
 <body>
+
     <h1>🏃 My DIY Run</h1>
 
-    <p>My first DIY running tracker</p>
+    <div class="metric">
+        <div class="value" id="time">00:00:00</div>
+        <div class="label">TIME</div>
+    </div>
 
-    <button onclick="startGPS()">START GPS</button>
+    <div class="metric">
+        <div class="value" id="distance">0.00</div>
+        <div class="label">DISTANCE (km)</div>
+    </div>
 
-    <p id="status">GPS not started</p>
+    <div class="metric">
+        <div class="value" id="pace">--:--</div>
+        <div class="label">AVERAGE PACE (min/km)</div>
+    </div>
 
-    <script>
-        function startGPS() {
+    <button id="startButton" onclick="startRun()">START RUN</button>
+    <button id="stopButton" onclick="stopRun()">STOP RUN</button>
+
+    <div id="status">Ready</div>
+
+    <h2>KM SPLITS</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>KM</th>
+                <th>TIME</th>
+                <th>PACE</th>
+            </tr>
+        </thead>
+
+        <tbody id="splits">
+        </tbody>
+    </table>
+
+
+<script>
+
+let watchId = null;
+
+let startTime = null;
+let lastPosition = null;
+
+let totalDistance = 0;
+
+let timerInterval = null;
+
+let lastSplitDistance = 0;
+let lastSplitTime = 0;
+let splitNumber = 1;
+
+
+// Convert degrees to radians
+function toRadians(degrees) {
+    return degrees * Math.PI / 180;
+}
+
+
+// Calculate distance between two GPS coordinates
+function distanceBetween(lat1, lon1, lat2, lon2) {
+
+    const R = 6371000; // Earth radius in metres
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+}
+
+
+// Format seconds as HH:MM:SS
+function formatTime(seconds) {
+
+    seconds = Math.floor(seconds);
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    return String(hours).padStart(2, "0") + ":" +
+           String(minutes).padStart(2, "0") + ":" +
+           String(secs).padStart(2, "0");
+}
+
+
+// Format pace as MM:SS per km
+function formatPace(secondsPerKm) {
+
+    if (!isFinite(secondsPerKm) || secondsPerKm <= 0) {
+        return "--:--";
+    }
+
+    const minutes = Math.floor(secondsPerKm / 60);
+    const seconds = Math.floor(secondsPerKm % 60);
+
+    return String(minutes).padStart(2, "0") + ":" +
+           String(seconds).padStart(2, "0");
+}
+
+
+// Update elapsed time
+function updateTimer() {
+
+    if (!startTime) return;
+
+    const elapsed =
+        (Date.now() - startTime) / 1000;
+
+    document.getElementById("time").innerText =
+        formatTime(elapsed);
+
+    if (totalDistance > 0) {
+
+        const pace =
+            elapsed / totalDistance;
+
+        document.getElementById("pace").innerText =
+            formatPace(pace);
+    }
+}
+
+
+// Start the run
+function startRun() {
+
+    if (!navigator.geolocation) {
+
+        document.getElementById("status").innerText =
+            "GPS is not available on this device.";
+
+        return;
+    }
+
+    // Reset everything
+    startTime = Date.now();
+
+    lastPosition = null;
+
+    totalDistance = 0;
+
+    lastSplitDistance = 0;
+
+    lastSplitTime = 0;
+
+    splitNumber = 1;
+
+    document.getElementById("distance").innerText = "0.00";
+    document.getElementById("time").innerText = "00:00:00";
+    document.getElementById("pace").innerText = "--:--";
+    document.getElementById("splits").innerHTML = "";
+
+    document.getElementById("status").innerText =
+        "Getting GPS...";
+
+    timerInterval = setInterval(updateTimer, 1000);
+
+
+    watchId = navigator.geolocation.watchPosition(
+
+        function(position) {
+
+            const current = position.coords;
+
             document.getElementById("status").innerText =
-                "Requesting GPS...";
+                "GPS accuracy: " +
+                Math.round(current.accuracy) +
+                " m";
 
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    document.getElementById("status").innerHTML =
-                        "GPS is working!<br><br>" +
-                        "Latitude: " + position.coords.latitude + "<br>" +
-                        "Longitude: " + position.coords.longitude + "<br>" +
-                        "Accuracy: " +
-                        position.coords.accuracy.toFixed(1) +
-                        " metres";
-                },
-                function(error) {
-                    document.getElementById("status").innerText =
-                        "GPS error: " + error.message;
-                },
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 10000
-                }
-            );
+
+            // First GPS reading
+            if (lastPosition === null) {
+
+                lastPosition = {
+                    latitude: current.latitude,
+                    longitude: current.longitude
+                };
+
+                return;
+            }
+
+
+            // Ignore very inaccurate GPS readings
+            if (current.accuracy > 50) {
+                return;
+            }
+
+
+            const segmentDistance =
+                distanceBetween(
+                    lastPosition.latitude,
+                    lastPosition.longitude,
+                    current.latitude,
+                    current.longitude
+                );
+
+
+            // Ignore impossible GPS jumps
+            if (segmentDistance > 50) {
+                return;
+            }
+
+
+            totalDistance += segmentDistance;
+
+
+            lastPosition = {
+                latitude: current.latitude,
+                longitude: current.longitude
+            };
+
+
+            document.getElementById("distance").innerText =
+                (totalDistance / 1000).toFixed(2);
+
+
+            // Check whether another kilometre is completed
+            while (totalDistance >= splitNumber * 1000) {
+
+                const now = Date.now();
+
+                const elapsed =
+                    (now - startTime) / 1000;
+
+                const splitTime =
+                    elapsed - lastSplitTime;
+
+                const splitPace =
+                    splitTime;
+
+                const row =
+                    document.createElement("tr");
+
+                row.innerHTML =
+                    "<td>" + splitNumber + "</td>" +
+                    "<td>" + formatTime(elapsed) + "</td>" +
+                    "<td>" + formatPace(splitPace) + "</td>";
+
+                document.getElementById("splits")
+                    .appendChild(row);
+
+
+                lastSplitTime = elapsed;
+
+                splitNumber++;
+            }
+
+        },
+
+        function(error) {
+
+            document.getElementById("status").innerText =
+                "GPS error: " + error.message;
+        },
+
+        {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 10000
         }
-    </script>
+    );
+}
+
+
+// Stop the run
+function stopRun() {
+
+    if (watchId !== null) {
+
+        navigator.geolocation.clearWatch(watchId);
+
+        watchId = null;
+    }
+
+    if (timerInterval !== null) {
+
+        clearInterval(timerInterval);
+
+        timerInterval = null;
+    }
+
+    document.getElementById("status").innerText =
+        "Run finished.";
+
+    updateTimer();
+}
+
+</script>
+
 </body>
 </html>
