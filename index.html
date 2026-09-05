@@ -84,8 +84,7 @@
         <div class="label">AVERAGE PACE (min/km)</div>
     </div>
 
-    <button id="startButton" onclick="startRun()">START RUN</button>
-    <button id="stopButton" onclick="stopRun()">STOP RUN</button>
+<button id="runButton" onclick="toggleRun()">START RUN</button>
 
     <div id="status">Ready</div>
 
@@ -199,6 +198,18 @@ function updateTimer() {
 }
 
 
+let isRunning = false;
+
+function toggleRun() {
+
+    if (isRunning) {
+        stopRun();
+    } else {
+        startRun();
+    }
+}
+
+
 // Start the run
 function startRun() {
 
@@ -210,17 +221,17 @@ function startRun() {
         return;
     }
 
-    // Reset everything
+    isRunning = true;
+
+    document.getElementById("runButton").innerText =
+        "STOP RUN";
+
     startTime = Date.now();
 
     lastPosition = null;
-
     totalDistance = 0;
-
     lastSplitDistance = 0;
-
     lastSplitTime = 0;
-
     splitNumber = 1;
 
     document.getElementById("distance").innerText = "0.00";
@@ -246,7 +257,6 @@ function startRun() {
                 " m";
 
 
-            // First GPS reading
             if (lastPosition === null) {
 
                 lastPosition = {
@@ -258,7 +268,6 @@ function startRun() {
             }
 
 
-            // Ignore very inaccurate GPS readings
             if (current.accuracy > 50) {
                 return;
             }
@@ -273,7 +282,6 @@ function startRun() {
                 );
 
 
-            // Ignore impossible GPS jumps
             if (segmentDistance > 50) {
                 return;
             }
@@ -292,7 +300,6 @@ function startRun() {
                 (totalDistance / 1000).toFixed(2);
 
 
-            // Check whether another kilometre is completed
             while (totalDistance >= splitNumber * 1000) {
 
                 const now = Date.now();
@@ -303,20 +310,16 @@ function startRun() {
                 const splitTime =
                     elapsed - lastSplitTime;
 
-                const splitPace =
-                    splitTime;
-
                 const row =
                     document.createElement("tr");
 
                 row.innerHTML =
                     "<td>" + splitNumber + "</td>" +
                     "<td>" + formatTime(elapsed) + "</td>" +
-                    "<td>" + formatPace(splitPace) + "</td>";
+                    "<td>" + formatPace(splitTime) + "</td>";
 
                 document.getElementById("splits")
                     .appendChild(row);
-
 
                 lastSplitTime = elapsed;
 
@@ -343,6 +346,8 @@ function startRun() {
 // Stop the run
 function stopRun() {
 
+    isRunning = false;
+
     if (watchId !== null) {
 
         navigator.geolocation.clearWatch(watchId);
@@ -357,12 +362,14 @@ function stopRun() {
         timerInterval = null;
     }
 
+    document.getElementById("runButton").innerText =
+        "START RUN";
+
     document.getElementById("status").innerText =
         "Run finished.";
 
     updateTimer();
 }
-
 </script>
 
 </body>
