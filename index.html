@@ -1,257 +1,1158 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My DIY Run</title>
+
   <style>
-    body { font-family: system-ui, -apple-system, Roboto, Arial; padding: 1rem; max-width:640px; margin:auto; }
-    .big { font-size: 1.25rem; }
-    button { margin: .5rem .25rem; padding: .5rem 1rem; }
-    #splits { margin-top: 1rem; }
-    .split { margin-bottom: .25rem; }
-    .small { font-size: .9rem; color: #555 }
-    .muted { color: #666 }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #111;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      margin: 6px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #runButton {
+      background: #16803c;
+      color: white;
+    }
+
+    #runButton.stop {
+      background: #c62828;
+    }
+
+    #exportButton {
+      background: #333;
+      color: white;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .label {
+      font-size: 13px;
+      color: #777;
+    }
+
+    .value {
+      font-size: 25px;
+      font-weight: 600;
+      margin-top: 5px;
+    }
+
+    #status {
+      margin-top: 15px;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+    }
+
+    .warning {
+      margin-top: 15px;
+      padding: 15px;
+      background: #fff3cd;
+      border-radius: 10px;
+    }
+
+    .warning button {
+      background: white;
+      color: #111;
+      border: 1px solid #bbb;
+    }
+
+    .section {
+      margin-top: 25px;
+    }
+
+    .section h2 {
+      font-size: 20px;
+    }
+
+    .split {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 5px;
+      border-bottom: 1px solid #ddd;
+      background: white;
+    }
+
+    .history-run {
+      background: white;
+      padding: 14px;
+      margin: 8px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .history-main {
+      font-weight: 600;
+      font-size: 17px;
+    }
+
+    .history-details {
+      color: #666;
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+    .empty {
+      color: #777;
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
+
 <body>
-  <h1>🏃 My DIY Run</h1>
-  <p class="small">A simple in-browser running tracker. Requires HTTPS or localhost and location permission.</p>
 
-  <div>
-    <button id="startBtn">Start GPS</button>
-    <button id="stopBtn" disabled>Stop</button>
-    <button id="exportBtn" disabled>Export GPX</button>
+  <h1>My DIY Run</h1>
+  <div class="subtitle">V3 — GPS + saved run history</div>
+
+  <button id="runButton">START RUN</button>
+
+  <div id="status">
+    Ready.
   </div>
 
-  <p id="status">Not started</p>
+  <div id="stats" class="stats hidden">
 
-  <div id="stats" style="display:none">
-    <p class="big" id="distance">Distance: 0.00 km</p>
-    <p class="big" id="speed">Speed: 0.0 km/h</p>
-    <p class="big" id="pace">Pace: --:-- /km</p>
-    <p id="coords">Lat: — Lon: —</p>
-    <div id="splits"><strong>Splits</strong></div>
+    <div class="card">
+      <div class="label">Distance</div>
+      <div class="value" id="distance">0.00 km</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Time</div>
+      <div class="value" id="elapsed">00:00</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Avg Pace</div>
+      <div class="value" id="avgPace">--</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Speed</div>
+      <div class="value" id="speed">0.0 km/h</div>
+    </div>
+
+    <div class="card">
+      <div class="label">GPS Accuracy</div>
+      <div class="value" id="accuracy">--</div>
+    </div>
+
+    <div class="card">
+      <div class="label">GPS Points</div>
+      <div class="value" id="pointsCount">0</div>
+    </div>
+
   </div>
 
-  <script>
-    // Utilities
-    function haversineMeters(lat1, lon1, lat2, lon2) {
-      const toRad = x => x * Math.PI / 180;
-      const R = 6371000; // meters
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
-      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  <div id="warning" class="warning hidden">
+    <strong>Very little movement detected.</strong>
+    <p>
+      The GPS data does not show significant movement.
+      Do you want to discard this run or keep it anyway?
+    </p>
+
+    <button id="discardButton">DISCARD</button>
+    <button id="saveAnywayButton">SAVE ANYWAY</button>
+  </div>
+
+  <div class="section">
+    <h2>1 km Splits</h2>
+    <div id="splits">
+      <div class="empty">No splits yet.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <button id="exportButton" disabled>EXPORT GPX</button>
+  </div>
+
+  <div class="section">
+    <h2>Run History</h2>
+    <div id="history"></div>
+  </div>
+
+
+<script>
+
+  // ------------------------------------------------------------
+  // STATE
+  // ------------------------------------------------------------
+
+  let watchId = null;
+
+  let running = false;
+
+  let startTime = null;
+  let elapsedTimer = null;
+
+  let totalMeters = 0;
+
+  let lastPosition = null;
+
+  let points = [];
+
+  let splits = [];
+
+  let nextKmMark = 1000;
+
+  let lastSplitTime = null;
+
+  let latestSpeed = 0;
+
+  let movementEvidence = 0;
+
+  const MIN_MOVEMENT_METERS = 3;
+  const MIN_USEFUL_DISTANCE_METERS = 100;
+  const MAX_ACCURACY_METERS = 60;
+  const MAX_REASONABLE_SPEED_MS = 10;
+
+
+  // ------------------------------------------------------------
+  // ELEMENTS
+  // ------------------------------------------------------------
+
+  const runButton = document.getElementById("runButton");
+
+  const stats = document.getElementById("stats");
+
+  const status = document.getElementById("status");
+
+  const distanceEl = document.getElementById("distance");
+  const elapsedEl = document.getElementById("elapsed");
+  const avgPaceEl = document.getElementById("avgPace");
+  const speedEl = document.getElementById("speed");
+  const accuracyEl = document.getElementById("accuracy");
+  const pointsCountEl = document.getElementById("pointsCount");
+
+  const splitsEl = document.getElementById("splits");
+
+  const warning = document.getElementById("warning");
+
+  const discardButton = document.getElementById("discardButton");
+  const saveAnywayButton = document.getElementById("saveAnywayButton");
+
+  const exportButton = document.getElementById("exportButton");
+
+  const historyEl = document.getElementById("history");
+
+
+  // ------------------------------------------------------------
+  // FORMATTING
+  // ------------------------------------------------------------
+
+  function formatDuration(seconds) {
+
+    seconds = Math.max(0, Math.floor(seconds));
+
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+
+    if (h > 0) {
+      return (
+        String(h).padStart(2, "0") + ":" +
+        String(m).padStart(2, "0") + ":" +
+        String(s).padStart(2, "0")
+      );
     }
 
-    function formatTimeSecondsToPace(secPerKm) {
-      if (!isFinite(secPerKm) || secPerKm <= 0) return '--:--';
-      const m = Math.floor(secPerKm / 60);
-      const s = Math.round(secPerKm % 60).toString().padStart(2, '0');
-      return `${m}:${s}`;
+    return (
+      String(m).padStart(2, "0") + ":" +
+      String(s).padStart(2, "0")
+    );
+  }
+
+
+  function formatPace(secondsPerKm) {
+
+    if (!isFinite(secondsPerKm) || secondsPerKm <= 0) {
+      return "--";
     }
 
-    function isoTime(ts) { return new Date(ts).toISOString(); }
+    const minutes = Math.floor(secondsPerKm / 60);
+    const seconds = Math.floor(secondsPerKm % 60);
 
-    // State
-    let watchId = null;
-    let points = []; // {lat, lon, time, accuracy}
-    let totalMeters = 0;
-    let nextKmMark = 1000; // meters
-    let splits = [];
+    return (
+      minutes + ":" +
+      String(seconds).padStart(2, "0") +
+      " /km"
+    );
+  }
 
-    // UI refs
-    const statusEl = document.getElementById('status');
-    const distanceEl = document.getElementById('distance');
-    const speedEl = document.getElementById('speed');
-    const paceEl = document.getElementById('pace');
-    const coordsEl = document.getElementById('coords');
-    const statsEl = document.getElementById('stats');
-    const splitsEl = document.getElementById('splits');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const exportBtn = document.getElementById('exportBtn');
 
-    startBtn.addEventListener('click', startTracking);
-    stopBtn.addEventListener('click', stopTracking);
-    exportBtn.addEventListener('click', exportGPX);
+  // ------------------------------------------------------------
+  // DISTANCE
+  // ------------------------------------------------------------
 
-    function startTracking() {
-      if (!('geolocation' in navigator)) {
-        statusEl.textContent = 'Geolocation not supported by this browser.';
-        return;
+  function haversine(lat1, lon1, lat2, lon2) {
+
+    const R = 6371000;
+
+    const toRad = x => x * Math.PI / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
+
+  function updateDisplay() {
+
+    distanceEl.textContent =
+      (totalMeters / 1000).toFixed(2) + " km";
+
+    pointsCountEl.textContent = points.length;
+
+    speedEl.textContent =
+      latestSpeed.toFixed(1) + " km/h";
+
+    if (lastPosition) {
+
+      accuracyEl.textContent =
+        Math.round(lastPosition.accuracy) + " m";
+    }
+
+    if (startTime) {
+
+      const elapsed =
+        (Date.now() - startTime) / 1000;
+
+      elapsedEl.textContent =
+        formatDuration(elapsed);
+
+      if (totalMeters >= MIN_USEFUL_DISTANCE_METERS) {
+
+        const pace =
+          elapsed / (totalMeters / 1000);
+
+        avgPaceEl.textContent =
+          formatPace(pace);
+
+      } else {
+
+        avgPaceEl.textContent = "--";
       }
+    }
+  }
 
-      // Reset
-      points = [];
-      totalMeters = 0;
-      nextKmMark = 1000;
-      splits = [];
-      splitsEl.innerHTML = '<strong>Splits</strong>';
 
-      statsEl.style.display = 'block';
-      statusEl.textContent = 'Requesting GPS permission...';
+  function updateSplits() {
 
-      // Start watching
-      watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+    if (splits.length === 0) {
+
+      splitsEl.innerHTML =
+        '<div class="empty">No splits yet.</div>';
+
+      return;
+    }
+
+    splitsEl.innerHTML = "";
+
+    splits.forEach(split => {
+
+      const row = document.createElement("div");
+
+      row.className = "split";
+
+      row.innerHTML = `
+        <span>KM ${split.km}</span>
+        <span>${formatPace(split.duration)}</span>
+      `;
+
+      splitsEl.appendChild(row);
+    });
+  }
+
+
+  // ------------------------------------------------------------
+  // START
+  // ------------------------------------------------------------
+
+  function startRun() {
+
+    if (!navigator.geolocation) {
+
+      status.textContent =
+        "GPS is not available in this browser.";
+
+      return;
+    }
+
+    running = true;
+
+    startTime = Date.now();
+
+    totalMeters = 0;
+
+    lastPosition = null;
+
+    points = [];
+
+    splits = [];
+
+    nextKmMark = 1000;
+
+    lastSplitTime = startTime;
+
+    latestSpeed = 0;
+
+    movementEvidence = 0;
+
+    warning.classList.add("hidden");
+
+    stats.classList.remove("hidden");
+
+    exportButton.disabled = true;
+
+    runButton.textContent = "STOP RUN";
+
+    runButton.classList.add("stop");
+
+    status.textContent =
+      "Starting GPS... move when ready.";
+
+    updateDisplay();
+
+    elapsedTimer = setInterval(updateDisplay, 1000);
+
+    watchId = navigator.geolocation.watchPosition(
+      handlePosition,
+      handleGpsError,
+      {
         enableHighAccuracy: true,
-        maximumAge: 1000,    // allow cached up to 1s
+        maximumAge: 1000,
         timeout: 10000
+      }
+    );
+  }
+
+
+  // ------------------------------------------------------------
+  // GPS POSITION
+  // ------------------------------------------------------------
+
+  function handlePosition(position) {
+
+    if (!running) return;
+
+    const coords = position.coords;
+
+    const accuracy = coords.accuracy;
+
+    if (!accuracy || accuracy > MAX_ACCURACY_METERS) {
+
+      status.textContent =
+        "GPS accuracy too low (" +
+        Math.round(accuracy || 0) +
+        " m). Waiting for better GPS...";
+
+      return;
+    }
+
+    const current = {
+
+      lat: coords.latitude,
+
+      lon: coords.longitude,
+
+      time: position.timestamp,
+
+      accuracy: accuracy,
+
+      speed:
+        coords.speed != null
+          ? coords.speed
+          : null,
+
+      altitude:
+        coords.altitude != null
+          ? coords.altitude
+          : null
+    };
+
+
+    // First GPS point
+
+    if (!lastPosition) {
+
+      lastPosition = current;
+
+      points.push(current);
+
+      status.textContent =
+        "GPS locked. Start moving.";
+
+      updateDisplay();
+
+      return;
+    }
+
+
+    const dtSeconds =
+      (current.time - lastPosition.time) / 1000;
+
+    if (dtSeconds <= 0) return;
+
+
+    const dMeters = haversine(
+      lastPosition.lat,
+      lastPosition.lon,
+      current.lat,
+      current.lon
+    );
+
+
+    // Derived speed
+
+    const derivedSpeed =
+      dMeters / dtSeconds;
+
+
+    // Reject physically unreasonable GPS jumps
+
+    if (derivedSpeed > MAX_REASONABLE_SPEED_MS) {
+
+      status.textContent =
+        "Ignoring GPS jump.";
+
+      return;
+    }
+
+
+    // Update latest position even when movement is tiny
+
+    lastPosition = current;
+
+    points.push(current);
+
+
+    // Ignore very small movements for distance
+
+    if (dMeters < MIN_MOVEMENT_METERS) {
+
+      updateDisplay();
+
+      return;
+    }
+
+
+    // Count movement evidence
+
+    if (derivedSpeed > 1.0) {
+
+      movementEvidence++;
+    }
+
+    if (coords.speed != null && coords.speed > 1.0) {
+
+      movementEvidence++;
+    }
+
+
+    // Add distance
+
+    const distanceBefore = totalMeters;
+
+    const distanceAfter =
+      totalMeters + dMeters;
+
+
+    // Current speed
+
+    latestSpeed =
+      derivedSpeed * 3.6;
+
+
+    // ----------------------------------------------------------
+    // 1 KM SPLIT INTERPOLATION
+    // ----------------------------------------------------------
+
+    while (distanceAfter >= nextKmMark) {
+
+      const distanceToMark =
+        nextKmMark - distanceBefore;
+
+      const fraction =
+        distanceToMark / dMeters;
+
+      const splitTimestamp =
+        lastPosition.time -
+        (1 - fraction) *
+        (current.time - lastPosition.time);
+
+      const splitDuration =
+        (splitTimestamp - lastSplitTime) / 1000;
+
+      splits.push({
+
+        km: Math.round(nextKmMark / 1000),
+
+        timeAtKm: splitTimestamp,
+
+        duration: splitDuration
       });
 
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-      exportBtn.disabled = true;
+      lastSplitTime = splitTimestamp;
+
+      nextKmMark += 1000;
     }
 
-    function stopTracking() {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-      }
-      statusEl.textContent = 'Stopped';
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-      exportBtn.disabled = points.length === 0;
+
+    totalMeters = distanceAfter;
+
+    status.textContent =
+      "Tracking run...";
+
+    updateDisplay();
+
+    updateSplits();
+  }
+
+
+  // ------------------------------------------------------------
+  // GPS ERROR
+  // ------------------------------------------------------------
+
+  function handleGpsError(error) {
+
+    if (!running) return;
+
+    if (error.code === 1) {
+
+      status.textContent =
+        "GPS permission denied.";
+
+    } else if (error.code === 2) {
+
+      status.textContent =
+        "GPS position unavailable.";
+
+    } else if (error.code === 3) {
+
+      status.textContent =
+        "GPS timeout. Still trying...";
+
+    } else {
+
+      status.textContent =
+        "GPS error.";
+    }
+  }
+
+
+  // ------------------------------------------------------------
+  // STOP
+  // ------------------------------------------------------------
+
+  function stopRun() {
+
+    if (!running) return;
+
+    running = false;
+
+    if (watchId !== null) {
+
+      navigator.geolocation.clearWatch(watchId);
+
+      watchId = null;
     }
 
-    function onPosition(pos) {
-      // Read values
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      const accuracy = pos.coords.accuracy; // meters
-      const timestamp = pos.timestamp || Date.now();
+    if (elapsedTimer !== null) {
 
-      // Basic filtering
-      const MAX_ACCEPTABLE_ACCURACY = 60; // meters, tune as required
-      if (typeof accuracy === 'number' && accuracy > MAX_ACCEPTABLE_ACCURACY) {
-        statusEl.textContent = `Ignoring inaccurate reading (±${Math.round(accuracy)} m).`;
-        return;
-      }
+      clearInterval(elapsedTimer);
 
-      // First point
-      const point = { lat, lon, time: timestamp, accuracy };
-      if (points.length === 0) {
-        points.push(point);
-        statusEl.textContent = 'Tracking...';
-        coordsEl.textContent = `Lat: ${lat.toFixed(6)} Lon: ${lon.toFixed(6)} (±${accuracy ? accuracy.toFixed(0) : '—'} m)`;
-        updateStats();
-        return;
-      }
-
-      // Compute delta to last accepted point
-      const last = points[points.length - 1];
-      const dtSeconds = (timestamp - last.time) / 1000;
-      if (dtSeconds <= 0) return; // ignore bad timestamps
-
-      const dMeters = haversineMeters(last.lat, last.lon, lat, lon);
-
-      // Ignore tiny jumps due to GPS jitter
-      const MIN_JUMP_METERS = 3; // ignore moves smaller than this
-      if (dMeters < MIN_JUMP_METERS) {
-        // still update last time/accuracy if you want, but skip distance
-        coordsEl.textContent = `Lat: ${lat.toFixed(6)} Lon: ${lon.toFixed(6)} (±${accuracy ? accuracy.toFixed(0) : '—'} m)`;
-        return;
-      }
-
-      // Accept point
-      points.push(point);
-      totalMeters += dMeters;
-
-      // Speed (m/s) -> km/h
-      const speedMs = dMeters / dtSeconds;
-      const speedKmh = speedMs * 3.6;
-
-      // Pace: time per km in seconds (approx based on instantaneous speed)
-      const paceSecPerKm = speedMs > 0 ? 1000 / speedMs : Infinity;
-
-      // Check km splits
-      if (totalMeters >= nextKmMark) {
-        // Find time at which the km was crossed by interpolating between last and current point
-        const lastTotalBefore = totalMeters - dMeters;
-        const needed = nextKmMark - lastTotalBefore;
-        const r = needed / dMeters;
-        const timeAtKmMs = last.time + r * (timestamp - last.time);
-
-        const prevKmTime = splits.length === 0 ? points[0].time : splits[splits.length - 1].timeAtKm;
-        const splitSec = (timeAtKmMs - prevKmTime) / 1000;
-
-        splits.push({
-          km: splits.length + 1,
-          splitSec: Math.round(splitSec),
-          timeAtKm: timeAtKmMs
-        });
-
-        // display split
-        const splitEl = document.createElement('div');
-        splitEl.className = 'split';
-        splitEl.textContent = `KM ${splits.length}: ${formatTimeSecondsToPace(splitSec)} (${Math.round(splitSec)}s)`;
-        splitsEl.appendChild(splitEl);
-
-        nextKmMark += 1000;
-      }
-
-      // Update UI
-      coordsEl.textContent = `Lat: ${lat.toFixed(6)} Lon: ${lon.toFixed(6)} (±${accuracy ? accuracy.toFixed(0) : '—'} m)`;
-      distanceEl.textContent = `Distance: ${(totalMeters / 1000).toFixed(2)} km`;
-      speedEl.textContent = `Speed: ${speedKmh.toFixed(1)} km/h`;
-      paceEl.textContent = `Pace: ${formatTimeSecondsToPace(paceSecPerKm)} /km`;
-      statusEl.textContent = `Tracking — ${points.length} points, last Δ ${dMeters.toFixed(1)} m`;
-
-      // Optionally persist to localStorage periodically
-      // localStorage.setItem('run.points', JSON.stringify(points));
+      elapsedTimer = null;
     }
 
-    function onError(err) {
-      switch (err.code) {
-        case err.PERMISSION_DENIED:
-          statusEl.textContent = 'Permission denied. Please allow location access.';
-          break;
-        case err.POSITION_UNAVAILABLE:
-          statusEl.textContent = 'Position unavailable.';
-          break;
-        case err.TIMEOUT:
-          statusEl.textContent = 'Position request timed out.';
-          break;
-        default:
-          statusEl.textContent = 'GPS error: ' + (err.message || 'unknown');
+    updateDisplay();
+
+    runButton.textContent = "START RUN";
+
+    runButton.classList.remove("stop");
+
+    exportButton.disabled =
+      points.length === 0;
+
+
+    const elapsed =
+      (Date.now() - startTime) / 1000;
+
+
+    // Very little movement
+
+    if (
+      totalMeters < MIN_USEFUL_DISTANCE_METERS &&
+      movementEvidence < 2
+    ) {
+
+      warning.classList.remove("hidden");
+
+      runButton.style.display = "none";
+
+      status.textContent =
+        "Run stopped.";
+
+      return;
+    }
+
+
+    // Normal run
+
+    saveRun();
+
+    status.textContent =
+      "Run saved.";
+
+  }
+
+
+  // ------------------------------------------------------------
+  // SAVE RUN
+  // ------------------------------------------------------------
+
+  function saveRun() {
+
+    const elapsed =
+      (Date.now() - startTime) / 1000;
+
+    const averagePace =
+      totalMeters > 0
+        ? elapsed / (totalMeters / 1000)
+        : null;
+
+    const run = {
+
+      id: Date.now(),
+
+      date: new Date().toISOString(),
+
+      duration: elapsed,
+
+      distanceMeters: totalMeters,
+
+      averagePace: averagePace,
+
+      averageSpeed:
+        elapsed > 0
+          ? (totalMeters / elapsed) * 3.6
+          : 0,
+
+      splits: splits,
+
+      points: points
+    };
+
+
+    let history = [];
+
+    try {
+
+      history =
+        JSON.parse(
+          localStorage.getItem("myDiyRuns") || "[]"
+        );
+
+    } catch (e) {
+
+      history = [];
+    }
+
+
+    history.unshift(run);
+
+
+    localStorage.setItem(
+      "myDiyRuns",
+      JSON.stringify(history)
+    );
+
+
+    renderHistory();
+  }
+
+
+  // ------------------------------------------------------------
+  // DISCARD
+  // ------------------------------------------------------------
+
+  function discardRun() {
+
+    points = [];
+
+    splits = [];
+
+    totalMeters = 0;
+
+    exportButton.disabled = true;
+
+    warning.classList.add("hidden");
+
+    runButton.style.display = "block";
+
+    status.textContent =
+      "Run discarded.";
+
+    updateDisplay();
+
+    updateSplits();
+  }
+
+
+  // ------------------------------------------------------------
+  // SAVE ANYWAY
+  // ------------------------------------------------------------
+
+  function saveAnyway() {
+
+    saveRun();
+
+    warning.classList.add("hidden");
+
+    runButton.style.display = "block";
+
+    status.textContent =
+      "Run saved.";
+
+  }
+
+
+  // ------------------------------------------------------------
+  // HISTORY
+  // ------------------------------------------------------------
+
+  function renderHistory() {
+
+    let history = [];
+
+    try {
+
+      history =
+        JSON.parse(
+          localStorage.getItem("myDiyRuns") || "[]"
+        );
+
+    } catch (e) {
+
+      history = [];
+    }
+
+
+    if (history.length === 0) {
+
+      historyEl.innerHTML =
+        '<div class="empty">No saved runs yet.</div>';
+
+      return;
+    }
+
+
+    historyEl.innerHTML = "";
+
+
+    history.forEach(run => {
+
+      const date =
+        new Date(run.date);
+
+
+      const dateText =
+        date.toLocaleDateString(
+          undefined,
+          {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          }
+        );
+
+
+      const timeText =
+        formatDuration(run.duration);
+
+
+      const distanceText =
+        (run.distanceMeters / 1000).toFixed(2)
+        + " km";
+
+
+      const paceText =
+        formatPace(run.averagePace);
+
+
+      const div =
+        document.createElement("div");
+
+      div.className =
+        "history-run";
+
+
+      div.innerHTML = `
+
+        <div class="history-main">
+          ${dateText}
+        </div>
+
+        <div class="history-details">
+          ${distanceText}
+          &nbsp; • &nbsp;
+          ${timeText}
+          &nbsp; • &nbsp;
+          ${paceText}
+        </div>
+
+      `;
+
+
+      div.onclick = function() {
+
+        showRunDetails(run);
+      };
+
+
+      historyEl.appendChild(div);
+    });
+  }
+
+
+  // ------------------------------------------------------------
+  // VIEW OLD RUN
+  // ------------------------------------------------------------
+
+  function showRunDetails(run) {
+
+    const date =
+      new Date(run.date);
+
+
+    const dateText =
+      date.toLocaleString();
+
+
+    let message =
+
+      "RUN DETAILS\n\n" +
+
+      dateText +
+
+      "\n\nDistance: " +
+      (run.distanceMeters / 1000).toFixed(2) +
+      " km" +
+
+      "\nTime: " +
+      formatDuration(run.duration) +
+
+      "\nAverage pace: " +
+      formatPace(run.averagePace) +
+
+      "\nAverage speed: " +
+      run.averageSpeed.toFixed(1) +
+      " km/h" +
+
+      "\nGPS points: " +
+      run.points.length;
+
+
+    if (run.splits.length > 0) {
+
+      message += "\n\n1 KM SPLITS\n";
+
+      run.splits.forEach(split => {
+
+        message +=
+          "KM " +
+          split.km +
+          ": " +
+          formatPace(split.duration) +
+          "\n";
+      });
+    }
+
+
+    alert(message);
+  }
+
+
+  // ------------------------------------------------------------
+  // GPX EXPORT
+  // ------------------------------------------------------------
+
+  function exportGPX() {
+
+    if (points.length === 0) return;
+
+
+    let gpx =
+
+`<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1"
+     creator="My DIY Run"
+     xmlns="http://www.topografix.com/GPX/1/1">
+
+<trk>
+<name>My DIY Run</name>
+<trkseg>
+`;
+
+
+    points.forEach(point => {
+
+      gpx +=
+        `<trkpt lat="${point.lat}" lon="${point.lon}">`;
+
+      if (point.altitude != null) {
+
+        gpx +=
+          `<ele>${point.altitude}</ele>`;
       }
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
 
-    function updateStats() {
-      distanceEl.textContent = `Distance: ${(totalMeters / 1000).toFixed(2)} km`;
-      speedEl.textContent = `Speed: -- km/h`;
-      paceEl.textContent = `Pace: --:-- /km`;
-    }
+      gpx +=
+        `<time>${new Date(point.time).toISOString()}</time>`;
 
-    // GPX export (simple)
-    function exportGPX() {
-      if (points.length === 0) return;
-      const name = `my-diy-run-${new Date().toISOString()}`;
-      let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-      gpx += `<gpx version="1.1" creator="my-diy-run" xmlns="http://www.topografix.com/GPX/1/1">\n`;
-      gpx += `<metadata><time>${isoTime(points[0].time)}</time></metadata>\n`;
-      gpx += `<trk><name>${name}</name><trkseg>\n`;
-      for (const p of points) {
-        gpx += `<trkpt lat="${p.lat}" lon="${p.lon}"><time>${isoTime(p.time)}</time></trkpt>\n`;
+      gpx +=
+        `</trkpt>\n`;
+    });
+
+
+    gpx +=
+`
+</trkseg>
+</trk>
+</gpx>`;
+
+
+    const blob =
+      new Blob(
+        [gpx],
+        {
+          type: "application/gpx+xml"
+        }
+      );
+
+
+    const url =
+      URL.createObjectURL(blob);
+
+
+    const a =
+      document.createElement("a");
+
+
+    a.href = url;
+
+    a.download =
+      "my-diy-run-" +
+      new Date().toISOString().slice(0,10) +
+      ".gpx";
+
+
+    a.click();
+
+
+    URL.revokeObjectURL(url);
+  }
+
+
+  // ------------------------------------------------------------
+  // BUTTON EVENTS
+  // ------------------------------------------------------------
+
+  runButton.addEventListener(
+    "click",
+    function() {
+
+      if (running) {
+
+        stopRun();
+
+      } else {
+
+        startRun();
       }
-      gpx += `</trkseg></trk>\n</gpx>`;
-
-      const blob = new Blob([gpx], { type: 'application/gpx+xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${name}.gpx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     }
+  );
 
-    // If we have saved points in localStorage we could restore (not implemented by default)
-  </script>
+
+  discardButton.addEventListener(
+    "click",
+    discardRun
+  );
+
+
+  saveAnywayButton.addEventListener(
+    "click",
+    saveAnyway
+  );
+
+
+  exportButton.addEventListener(
+    "click",
+    exportGPX
+  );
+
+
+  // ------------------------------------------------------------
+  // INITIAL LOAD
+  // ------------------------------------------------------------
+
+  renderHistory();
+
+</script>
+
 </body>
 </html>
