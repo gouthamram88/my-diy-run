@@ -1,694 +1,257 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>My DIY Run</title>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
-        }
-
-        h1 {
-            margin-bottom: 25px;
-        }
-
-        .metric {
-            margin: 20px 0;
-        }
-
-        .value {
-            font-size: 42px;
-            font-weight: bold;
-        }
-
-        .label {
-            font-size: 16px;
-            color: #666;
-        }
-
-        button {
-            font-size: 20px;
-            padding: 14px 30px;
-            margin: 15px 5px;
-            border-radius: 10px;
-            border: none;
-            background: #2e7d32;
-            color: white;
-        }
-
-        button.running {
-            background: #c62828;
-        }
-
-        button.secondary {
-            background: #777;
-        }
-
-        button.danger {
-            background: #c62828;
-        }
-
-        table {
-            width: 100%;
-            margin-top: 30px;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        #status {
-            margin-top: 10px;
-            color: #555;
-        }
-
-        #noMovement {
-            display: none;
-            margin-top: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-        }
-
-        #noMovement h2 {
-            margin-top: 0;
-        }
-    </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>My DIY Run</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Roboto, Arial; padding: 1rem; max-width:640px; margin:auto; }
+    .big { font-size: 1.25rem; }
+    button { margin: .5rem .25rem; padding: .5rem 1rem; }
+    #splits { margin-top: 1rem; }
+    .split { margin-bottom: .25rem; }
+    .small { font-size: .9rem; color: #555 }
+    .muted { color: #666 }
+  </style>
 </head>
-
 <body>
+  <h1>🏃 My DIY Run</h1>
+  <p class="small">A simple in-browser running tracker. Requires HTTPS or localhost and location permission.</p>
 
-    <h1>🏃 My DIY Run</h1>
+  <div>
+    <button id="startBtn">Start GPS</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="exportBtn" disabled>Export GPX</button>
+  </div>
 
-    <div class="metric">
-        <div class="value" id="time">00:00:00</div>
-        <div class="label">TIME</div>
-    </div>
+  <p id="status">Not started</p>
 
-    <div class="metric">
-        <div class="value" id="distance">0.00</div>
-        <div class="label">DISTANCE (km)</div>
-    </div>
+  <div id="stats" style="display:none">
+    <p class="big" id="distance">Distance: 0.00 km</p>
+    <p class="big" id="speed">Speed: 0.0 km/h</p>
+    <p class="big" id="pace">Pace: --:-- /km</p>
+    <p id="coords">Lat: — Lon: —</p>
+    <div id="splits"><strong>Splits</strong></div>
+  </div>
 
-    <div class="metric">
-        <div class="value" id="pace">--:--</div>
-        <div class="label">AVERAGE PACE (min/km)</div>
-    </div>
-
-    <button id="runButton" onclick="toggleRun()">
-        START RUN
-    </button>
-
-    <div id="status">Ready</div>
-
-    <div id="noMovement">
-
-        <h2>⚠️ No significant movement detected</h2>
-
-        <p>
-            This recording doesn't appear to contain
-            meaningful movement.
-        </p>
-
-        <p>
-            <strong>Distance:</strong>
-            <span id="finalDistance">0.00</span> km
-        </p>
-
-        <p>
-            <strong>Time:</strong>
-            <span id="finalTime">00:00:00</span>
-        </p>
-
-        <button class="danger" onclick="discardRun()">
-            DISCARD
-        </button>
-
-        <button class="secondary" onclick="saveAnyway()">
-            SAVE ANYWAY
-        </button>
-
-    </div>
-
-    <h2>KM SPLITS</h2>
-
-    <table>
-        <thead>
-            <tr>
-                <th>KM</th>
-                <th>TIME</th>
-                <th>PACE</th>
-            </tr>
-        </thead>
-
-        <tbody id="splits">
-        </tbody>
-    </table>
-
-
-<script>
-
-let watchId = null;
-let startTime = null;
-let lastPosition = null;
-
-let totalDistance = 0;
-let timerInterval = null;
-
-let lastSplitTime = 0;
-let splitNumber = 1;
-
-let isRunning = false;
-
-let hasMovement = false;
-
-
-// Minimum distance between GPS points that we will count.
-// This helps reduce small GPS movements while stationary.
-const MIN_MOVEMENT_METRES = 5;
-
-
-// Convert degrees to radians
-function toRadians(degrees) {
-
-    return degrees * Math.PI / 180;
-}
-
-
-// Calculate distance between two GPS coordinates
-function distanceBetween(
-    lat1,
-    lon1,
-    lat2,
-    lon2
-) {
-
-    const R = 6371000;
-
-    const dLat =
-        toRadians(lat2 - lat1);
-
-    const dLon =
-        toRadians(lon2 - lon1);
-
-    const a =
-        Math.sin(dLat / 2) *
-        Math.sin(dLat / 2) +
-
-        Math.cos(toRadians(lat1)) *
-        Math.cos(toRadians(lat2)) *
-
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-
-    const c =
-        2 *
-        Math.atan2(
-            Math.sqrt(a),
-            Math.sqrt(1 - a)
-        );
-
-    return R * c;
-}
-
-
-// Format elapsed time
-function formatTime(seconds) {
-
-    seconds = Math.floor(seconds);
-
-    const hours =
-        Math.floor(seconds / 3600);
-
-    const minutes =
-        Math.floor(
-            (seconds % 3600) / 60
-        );
-
-    const secs =
-        seconds % 60;
-
-    return String(hours).padStart(2, "0") +
-           ":" +
-           String(minutes).padStart(2, "0") +
-           ":" +
-           String(secs).padStart(2, "0");
-}
-
-
-// Format pace
-function formatPace(secondsPerKm) {
-
-    if (
-        !isFinite(secondsPerKm) ||
-        secondsPerKm <= 0
-    ) {
-        return "--:--";
+  <script>
+    // Utilities
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const toRad = x => x * Math.PI / 180;
+      const R = 6371000; // meters
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
     }
 
-    const minutes =
-        Math.floor(secondsPerKm / 60);
-
-    const seconds =
-        Math.floor(secondsPerKm % 60);
-
-    return String(minutes).padStart(2, "0") +
-           ":" +
-           String(seconds).padStart(2, "0");
-}
-
-
-// Update timer and average pace
-function updateTimer() {
-
-    if (!startTime) return;
-
-    const elapsed =
-        (Date.now() - startTime) / 1000;
-
-
-    document.getElementById("time").innerText =
-        formatTime(elapsed);
-
-
-    // Don't show pace until we have at least
-    // 100 metres of meaningful movement.
-    if (totalDistance >= 100) {
-
-        const averagePace =
-            elapsed /
-            (totalDistance / 1000);
-
-        document.getElementById("pace").innerText =
-            formatPace(averagePace);
-
-    } else {
-
-        document.getElementById("pace").innerText =
-            "--:--";
+    function formatTimeSecondsToPace(secPerKm) {
+      if (!isFinite(secPerKm) || secPerKm <= 0) return '--:--';
+      const m = Math.floor(secPerKm / 60);
+      const s = Math.round(secPerKm % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
     }
-}
 
+    function isoTime(ts) { return new Date(ts).toISOString(); }
 
-// START / STOP
-function toggleRun() {
+    // State
+    let watchId = null;
+    let points = []; // {lat, lon, time, accuracy}
+    let totalMeters = 0;
+    let nextKmMark = 1000; // meters
+    let splits = [];
 
-    if (isRunning) {
+    // UI refs
+    const statusEl = document.getElementById('status');
+    const distanceEl = document.getElementById('distance');
+    const speedEl = document.getElementById('speed');
+    const paceEl = document.getElementById('pace');
+    const coordsEl = document.getElementById('coords');
+    const statsEl = document.getElementById('stats');
+    const splitsEl = document.getElementById('splits');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const exportBtn = document.getElementById('exportBtn');
 
-        stopRun();
+    startBtn.addEventListener('click', startTracking);
+    stopBtn.addEventListener('click', stopTracking);
+    exportBtn.addEventListener('click', exportGPX);
 
-    } else {
-
-        startRun();
-    }
-}
-
-
-// START RUN
-function startRun() {
-
-    if (!navigator.geolocation) {
-
-        document.getElementById("status").innerText =
-            "GPS is not available.";
-
+    function startTracking() {
+      if (!('geolocation' in navigator)) {
+        statusEl.textContent = 'Geolocation not supported by this browser.';
         return;
+      }
+
+      // Reset
+      points = [];
+      totalMeters = 0;
+      nextKmMark = 1000;
+      splits = [];
+      splitsEl.innerHTML = '<strong>Splits</strong>';
+
+      statsEl.style.display = 'block';
+      statusEl.textContent = 'Requesting GPS permission...';
+
+      // Start watching
+      watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+        enableHighAccuracy: true,
+        maximumAge: 1000,    // allow cached up to 1s
+        timeout: 10000
+      });
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      exportBtn.disabled = true;
     }
 
-
-    isRunning = true;
-
-    hasMovement = false;
-
-
-    const button =
-        document.getElementById("runButton");
-
-    button.innerText =
-        "STOP RUN";
-
-    button.classList.add("running");
-
-
-    document.getElementById("noMovement")
-        .style.display = "none";
-
-
-    startTime =
-        Date.now();
-
-    lastPosition = null;
-
-    totalDistance = 0;
-
-    lastSplitTime = 0;
-
-    splitNumber = 1;
-
-
-    document.getElementById("distance")
-        .innerText = "0.00";
-
-    document.getElementById("time")
-        .innerText = "00:00:00";
-
-    document.getElementById("pace")
-        .innerText = "--:--";
-
-    document.getElementById("splits")
-        .innerHTML = "";
-
-
-    document.getElementById("status")
-        .innerText =
-        "Getting GPS...";
-
-
-    timerInterval =
-        setInterval(
-            updateTimer,
-            1000
-        );
-
-
-    watchId =
-        navigator.geolocation.watchPosition(
-
-        function(position) {
-
-            const current =
-                position.coords;
-
-
-            document.getElementById("status")
-                .innerText =
-                "GPS accuracy: " +
-                Math.round(current.accuracy) +
-                " m";
-
-
-            // First GPS reading
-            if (lastPosition === null) {
-
-                lastPosition = {
-
-                    latitude:
-                        current.latitude,
-
-                    longitude:
-                        current.longitude
-                };
-
-                return;
-            }
-
-
-            // Ignore GPS readings with poor accuracy
-            if (current.accuracy > 50) {
-
-                return;
-            }
-
-
-            const segmentDistance =
-                distanceBetween(
-
-                    lastPosition.latitude,
-                    lastPosition.longitude,
-
-                    current.latitude,
-                    current.longitude
-                );
-
-
-            /*
-             Ignore tiny GPS movements.
-
-             If the phone is sitting still and GPS
-             moves by only a few metres, we don't
-             count that as actual movement.
-            */
-
-            if (
-                segmentDistance <
-                MIN_MOVEMENT_METRES
-            ) {
-
-                return;
-            }
-
-
-            /*
-             Ignore very large jumps.
-
-             This protects against GPS suddenly
-             jumping to an incorrect location.
-            */
-
-            if (
-                segmentDistance > 50
-            ) {
-
-                return;
-            }
-
-
-            // We have meaningful movement
-            hasMovement = true;
-
-
-            totalDistance +=
-                segmentDistance;
-
-
-            lastPosition = {
-
-                latitude:
-                    current.latitude,
-
-                longitude:
-                    current.longitude
-            };
-
-
-            // Display distance
-            document.getElementById("distance")
-                .innerText =
-                (
-                    totalDistance / 1000
-                ).toFixed(2);
-
-
-            // KM splits
-            while (
-                totalDistance >=
-                splitNumber * 1000
-            ) {
-
-                const now =
-                    Date.now();
-
-                const elapsed =
-                    (now - startTime) / 1000;
-
-
-                const splitTime =
-                    elapsed -
-                    lastSplitTime;
-
-
-                const row =
-                    document.createElement("tr");
-
-
-                row.innerHTML =
-                    "<td>" +
-                    splitNumber +
-                    "</td>" +
-
-                    "<td>" +
-                    formatTime(elapsed) +
-                    "</td>" +
-
-                    "<td>" +
-                    formatPace(splitTime) +
-                    "</td>";
-
-
-                document.getElementById("splits")
-                    .appendChild(row);
-
-
-                lastSplitTime =
-                    elapsed;
-
-                splitNumber++;
-            }
-
-        },
-
-
-        function(error) {
-
-            document.getElementById("status")
-                .innerText =
-                "GPS error: " +
-                error.message;
-        },
-
-
-        {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 10000
-        }
-    );
-}
-
-
-// STOP RUN
-function stopRun() {
-
-    isRunning = false;
-
-
-    if (watchId !== null) {
-
-        navigator.geolocation.clearWatch(
-            watchId
-        );
-
+    function stopTracking() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
         watchId = null;
+      }
+      statusEl.textContent = 'Stopped';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      exportBtn.disabled = points.length === 0;
     }
 
+    function onPosition(pos) {
+      // Read values
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy; // meters
+      const timestamp = pos.timestamp || Date.now();
 
-    if (timerInterval !== null) {
-
-        clearInterval(
-            timerInterval
-        );
-
-        timerInterval = null;
-    }
-
-
-    const elapsed =
-        (Date.now() - startTime) / 1000;
-
-
-    const button =
-        document.getElementById("runButton");
-
-    button.innerText =
-        "START RUN";
-
-    button.classList.remove("running");
-
-
-    /*
-       If we have less than 100 metres AND
-       no meaningful GPS movement occurred,
-       ask the user whether to discard it.
-    */
-
-    if (
-        totalDistance < 100 &&
-        !hasMovement
-    ) {
-
-        document.getElementById("finalDistance")
-            .innerText =
-            (
-                totalDistance / 1000
-            ).toFixed(2);
-
-
-        document.getElementById("finalTime")
-            .innerText =
-            formatTime(elapsed);
-
-
-        document.getElementById("noMovement")
-            .style.display =
-            "block";
-
-
-        document.getElementById("status")
-            .innerText =
-            "Recording needs review.";
-
+      // Basic filtering
+      const MAX_ACCEPTABLE_ACCURACY = 60; // meters, tune as required
+      if (typeof accuracy === 'number' && accuracy > MAX_ACCEPTABLE_ACCURACY) {
+        statusEl.textContent = `Ignoring inaccurate reading (±${Math.round(accuracy)} m).`;
         return;
+      }
+
+      // First point
+      const point = { lat, lon, time: timestamp, accuracy };
+      if (points.length === 0) {
+        points.push(point);
+        statusEl.textContent = 'Tracking...';
+        coordsEl.textContent = `Lat: ${lat.toFixed(6)} Lon: ${lon.toFixed(6)} (±${accuracy ? accuracy.toFixed(0) : '—'} m)`;
+        updateStats();
+        return;
+      }
+
+      // Compute delta to last accepted point
+      const last = points[points.length - 1];
+      const dtSeconds = (timestamp - last.time) / 1000;
+      if (dtSeconds <= 0) return; // ignore bad timestamps
+
+      const dMeters = haversineMeters(last.lat, last.lon, lat, lon);
+
+      // Ignore tiny jumps due to GPS jitter
+      const MIN_JUMP_METERS = 3; // ignore moves smaller than this
+      if (dMeters < MIN_JUMP_METERS) {
+        // still update last time/accuracy if you want, but skip distance
+        coordsEl.textContent = `Lat: ${lat.toFixed(6)} Lon: ${lon.toFixed(6)} (±${accuracy ? accuracy.toFixed(0) : '—'} m)`;
+        return;
+      }
+
+      // Accept point
+      points.push(point);
+      totalMeters += dMeters;
+
+      // Speed (m/s) -> km/h
+      const speedMs = dMeters / dtSeconds;
+      const speedKmh = speedMs * 3.6;
+
+      // Pace: time per km in seconds (approx based on instantaneous speed)
+      const paceSecPerKm = speedMs > 0 ? 1000 / speedMs : Infinity;
+
+      // Check km splits
+      if (totalMeters >= nextKmMark) {
+        // Find time at which the km was crossed by interpolating between last and current point
+        const lastTotalBefore = totalMeters - dMeters;
+        const needed = nextKmMark - lastTotalBefore;
+        const r = needed / dMeters;
+        const timeAtKmMs = last.time + r * (timestamp - last.time);
+
+        const prevKmTime = splits.length === 0 ? points[0].time : splits[splits.length - 1].timeAtKm;
+        const splitSec = (timeAtKmMs - prevKmTime) / 1000;
+
+        splits.push({
+          km: splits.length + 1,
+          splitSec: Math.round(splitSec),
+          timeAtKm: timeAtKmMs
+        });
+
+        // display split
+        const splitEl = document.createElement('div');
+        splitEl.className = 'split';
+        splitEl.textContent = `KM ${splits.length}: ${formatTimeSecondsToPace(splitSec)} (${Math.round(splitSec)}s)`;
+        splitsEl.appendChild(splitEl);
+
+        nextKmMark += 1000;
+      }
+
+      // Update UI
+      coordsEl.textContent = `Lat: ${lat.toFixed(6)} Lon: ${lon.toFixed(6)} (±${accuracy ? accuracy.toFixed(0) : '—'} m)`;
+      distanceEl.textContent = `Distance: ${(totalMeters / 1000).toFixed(2)} km`;
+      speedEl.textContent = `Speed: ${speedKmh.toFixed(1)} km/h`;
+      paceEl.textContent = `Pace: ${formatTimeSecondsToPace(paceSecPerKm)} /km`;
+      statusEl.textContent = `Tracking — ${points.length} points, last Δ ${dMeters.toFixed(1)} m`;
+
+      // Optionally persist to localStorage periodically
+      // localStorage.setItem('run.points', JSON.stringify(points));
     }
 
+    function onError(err) {
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          statusEl.textContent = 'Permission denied. Please allow location access.';
+          break;
+        case err.POSITION_UNAVAILABLE:
+          statusEl.textContent = 'Position unavailable.';
+          break;
+        case err.TIMEOUT:
+          statusEl.textContent = 'Position request timed out.';
+          break;
+        default:
+          statusEl.textContent = 'GPS error: ' + (err.message || 'unknown');
+      }
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
 
-    document.getElementById("status")
-        .innerText =
-        "Run finished.";
+    function updateStats() {
+      distanceEl.textContent = `Distance: ${(totalMeters / 1000).toFixed(2)} km`;
+      speedEl.textContent = `Speed: -- km/h`;
+      paceEl.textContent = `Pace: --:-- /km`;
+    }
 
-    updateTimer();
-}
+    // GPX export (simple)
+    function exportGPX() {
+      if (points.length === 0) return;
+      const name = `my-diy-run-${new Date().toISOString()}`;
+      let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      gpx += `<gpx version="1.1" creator="my-diy-run" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+      gpx += `<metadata><time>${isoTime(points[0].time)}</time></metadata>\n`;
+      gpx += `<trk><name>${name}</name><trkseg>\n`;
+      for (const p of points) {
+        gpx += `<trkpt lat="${p.lat}" lon="${p.lon}"><time>${isoTime(p.time)}</time></trkpt>\n`;
+      }
+      gpx += `</trkseg></trk>\n</gpx>`;
 
+      const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name}.gpx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
 
-// DISCARD RUN
-function discardRun() {
-
-    totalDistance = 0;
-
-    startTime = null;
-
-    lastPosition = null;
-
-    hasMovement = false;
-
-
-    document.getElementById("distance")
-        .innerText =
-        "0.00";
-
-    document.getElementById("time")
-        .innerText =
-        "00:00:00";
-
-    document.getElementById("pace")
-        .innerText =
-        "--:--";
-
-    document.getElementById("splits")
-        .innerHTML =
-        "";
-
-
-    document.getElementById("noMovement")
-        .style.display =
-        "none";
-
-
-    document.getElementById("status")
-        .innerText =
-        "Recording discarded.";
-}
-
-
-// SAVE ANYWAY
-function saveAnyway() {
-
-    document.getElementById("noMovement")
-        .style.display =
-        "none";
-
-    document.getElementById("status")
-        .innerText =
-        "Run saved.";
-
-    updateTimer();
-}
-
-</script>
-
+    // If we have saved points in localStorage we could restore (not implemented by default)
+  </script>
 </body>
 </html>
