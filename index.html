@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My DIY Run</title>
+</head>
+
+<body>
+    <h1>🏃 My DIY Run</h1>
+
+    <p>My first DIY running tracker</p>
+
+    <button onclick="startGPS()">START GPS</button>
+
+    <p id="status">GPS not started</p>
+
+    <script>
+        function startGPS() {
+            document.getElementById("status").innerText =
+                "Requesting GPS...";
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    document.getElementById("status").innerHTML =
+                        "GPS is working!<br><br>" +
+                        "Latitude: " + position.coords.latitude + "<br>" +
+                        "Longitude: " + position.coords.longitude + "<br>" +
+                        "Accuracy: " +
+                        position.coords.accuracy.toFixed(1) +
+                        " metres";
+                },
+                function(error) {
+                    document.getElementById("status").innerText =
+                        "GPS error: " + error.message;
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                }
+            );
+        }
+    </script>
+</body>
+</html>
